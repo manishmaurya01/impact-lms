@@ -7,6 +7,9 @@ const { OAuth2Client } = require('google-auth-library'); // FIXED: Loaded Google
 require('dotenv').config();
 
 const User = require('./models/User');
+const ScheduledQuiz = require('./models/ScheduledQuiz');
+const QuizAttempt = require('./models/QuizAttempt');
+const crypto = require('crypto');
 
 const app = express();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -204,6 +207,153 @@ app.post('/api/auth/google', async (req, res) => {
       success: false, 
       message: 'Cryptographic signature validation failed or unauthorized entity.' 
     });
+  }
+});
+
+// 4. QUIZ MODULE ENDPOINTS
+const callGeminiForQuestions = async ({ title, syllabusTopics, difficulty, totalQuestions, quizType }) => {
+  const topicsList = syllabusTopics && syllabusTopics.length > 0 ? syllabusTopics.join(', ') : 'general programming topics';
+  const systemPrompt = `You are an expert quiz generator. Generate exactly ${totalQuestions} ${quizType} questions for a learner. Return only valid JSON in the format { "questions": [ ... ] } with no extra text.`;
+  const userPrompt = `Create ${totalQuestions} ${quizType} questions for the following quiz configuration:\n- Title: ${title}\n- Topics: ${topicsList}\n- Difficulty: ${difficulty}\n- Output format: JSON with properties question, options, correctAnswer, explanation. Each option should be unique. Use concise, clear phrasing.`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 1200
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+
+    const jsonMatch = content.match(/\{[\s\S]*\}$/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);
+
+    if (!parsed || !Array.isArray(parsed.questions)) {
+      throw new Error('Gemini returned invalid question JSON structure.');
+    }
+
+    parsed.questions.forEach((question, index) => {
+      if (!question.question || !Array.isArray(question.options) || question.options.length < 2 || !question.correctAnswer || !question.explanation) {
+        throw new Error(`Gemini question ${index + 1} is missing required fields.`);
+      }
+    });
+
+    return parsed.questions;
+  } catch (error) {
+    console.error('Gemini request failed:', error);
+    throw error;
+  }
+};
+
+app.post('/api/quizzes/:quizId/start', async (req, res) => {
+  try {
+    const quizId = req.params.quizId;
+    const userId = req.body.userId || null;
+
+    const scheduledQuiz = await ScheduledQuiz.findOne({ quizId });
+    if (!scheduledQuiz) {
+      return res.status(404).json({ success: false, message: 'Scheduled quiz not found.' });
+    }
+
+    const questions = await callGeminiForQuestions({
+      title: scheduledQuiz.title,
+      syllabusTopics: scheduledQuiz.syllabusTopics,
+      difficulty: scheduledQuiz.difficulty,
+      totalQuestions: scheduledQuiz.totalQuestions,
+      quizType: scheduledQuiz.quizType
+    });
+
+    res.status(200).json({
+      success: true,
+      quizId,
+      title: scheduledQuiz.title,
+      description: scheduledQuiz.description,
+      totalQuestions: scheduledQuiz.totalQuestions,
+      timeLimit: scheduledQuiz.timeLimit,
+      status: scheduledQuiz.status,
+      generatedQuestions: questions
+    });
+  } catch (error) {
+    console.error('/api/quizzes/:quizId/start error:', error);
+    res.status(500).json({ success: false, message: 'Unable to start quiz at this time.' });
+  }
+});
+
+app.post('/api/quizzes/submit', async (req, res) => {
+  try {
+    const { quizId, userId, generatedQuestions, userAnswers } = req.body;
+
+    if (!quizId || !userId || !Array.isArray(generatedQuestions) || typeof userAnswers !== 'object') {
+      return res.status(400).json({ success: false, message: 'Required submission data missing or malformed.' });
+    }
+
+    let score = 0;
+    const breakdown = generatedQuestions.map((question, index) => {
+      const selected = userAnswers[index] || null;
+      const isCorrect = selected === question.correctAnswer;
+      if (isCorrect) score += 1;
+      return {
+        index,
+        question: question.question,
+        options: question.options,
+        correctAnswer: question.correctAnswer,
+        selectedAnswer: selected,
+        isCorrect,
+        explanation: question.explanation
+      };
+    });
+
+    const percentage = Math.round((score / generatedQuestions.length) * 100);
+    const attemptId = crypto.randomUUID();
+
+    const quizAttempt = new QuizAttempt({
+      attemptId,
+      quizId,
+      userId,
+      generatedQuestions,
+      userAnswers,
+      score,
+      percentage,
+      completedAt: new Date()
+    });
+
+    await quizAttempt.save();
+
+    const quizUpdate = await ScheduledQuiz.findOneAndUpdate(
+      { quizId, userId },
+      { status: 'Completed' },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      attemptId,
+      score,
+      percentage,
+      correctCount: score,
+      wrongCount: generatedQuestions.length - score,
+      breakdown
+    });
+  } catch (error) {
+    console.error('/api/quizzes/submit error:', error);
+    res.status(500).json({ success: false, message: 'Submission failed. Please try again.' });
   }
 });
 
