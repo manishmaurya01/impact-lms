@@ -1,9 +1,12 @@
+// Add this at the very top of your server.js file
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { OAuth2Client } = require('google-auth-library'); // FIXED: Loaded Google OAuth Engine
+const { OAuth2Client } = require('google-auth-library');
 require('dotenv').config();
 
 const User = require('./models/User');
@@ -14,18 +17,27 @@ const crypto = require('crypto');
 const app = express();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// --- MIDDLAWARES ---
-app.use(cors()); // Blocks Cross-Origin errors between React (port 3000) and Server (port 5000)
-app.use(express.json()); // Parses incoming JSON request bodies
+// --- PIPELINE MIDDLEWARE ---
+app.use(cors()); 
+app.use(express.json()); 
 
-// --- DATABASE HANDSHAKE ---
-const mongoURI = process.env.MONGO_URI;
-mongoose.connect(mongoURI)
-  .then(() => console.log('📡 Connected to MongoDB Atlas Cloud Database successfully.'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+// --- TELEMETRY DATA LAYER CONNECTIVITY ---
+const mongoURI = "mongodb://127.0.0.1:27017/LuminaLearn";
+
+// Defensive Configuration to prevent Mongoose from buffering queries indefinitely on connection drops
+mongoose.set('bufferCommands', false);
+
+mongoose.connect(mongoURI, {
+  serverSelectionTimeoutMS: 5000, // Terminate connection attempt after 5s if network is blocked
+})
+  .then(() => console.log('📡 [TELEMETRY]: Connected to MongoDB Atlas Cloud Database successfully.'))
+  .catch(err => {
+    console.error('❌ [DATA LAYER FAULT]: MongoDB Connection Error:', err.message);
+    console.error('⚠️ [DIAGNOSTIC]: Verify your local network DNS, or ensure your public IP is whitelisted in Atlas Network Access.');
+  });
 
 
-// --- API AUTHENTICATION ENDPOINTS ---
+// --- AUTHENTICATION ROUTING CAPSULES ---
 
 // 1. SIGN UP (REGISTER NODE)
 app.post('/api/auth/register', async (req, res) => {
@@ -41,7 +53,7 @@ app.post('/api/auth/register', async (req, res) => {
       learningStyle 
     } = req.body;
 
-    // Check if email already exists in system database
+    // Check if identity mapping already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ 
@@ -54,7 +66,7 @@ app.post('/api/auth/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Save and register User metadata profile to MongoDB cluster
+    // Commit new user profile to database cluster
     const newUser = new User({
       fullName,
       email,
@@ -74,7 +86,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Registration process crashed:', error);
+    console.error('❌ [COMPILE FAULT]: Registration process crashed:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Symmetric internal system compile error during registration.' 
@@ -87,7 +99,15 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Search user matching verified email
+    // Ensure database connection is up before evaluating
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database layer is offline. Telemetry synchronization failed.'
+      });
+    }
+
+    // Query active node credentials
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ 
@@ -96,7 +116,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Protection for Google-Only registered profiles attempting standard login without password
+    // Protection for Google-Only registered profiles
     if (!user.password && user.googleId) {
       return res.status(400).json({
         success: false,
@@ -104,7 +124,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Decrypt and compare target input password with MongoDB hash
+    // Decrypt and compare input hashes
     const isPasswordMatch = await bcrypt.compare(password, user.password);
     if (!isPasswordMatch) {
       return res.status(400).json({ 
@@ -113,7 +133,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Sign Secure JWT Authentication Token (Valid for 24 hours session)
+    // Sign Secure JWT Authentication Token (24-hour workspace session)
     const sessionToken = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
@@ -133,7 +153,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login process crashed:', error);
+    console.error('❌ [AUTH CORRUPTION]: Login process crashed:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Symmetric internal system compile error during login.' 
@@ -150,7 +170,14 @@ app.post('/api/auth/google', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Google identification token missing.' });
     }
 
-    // Verify token identity payload integrity signatures directly with Google cryptographic servers
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database layer is offline. Telemetry synchronization failed.'
+      });
+    }
+
+    // Verify token payload integrity with Google cryptographic servers
     const ticket = await googleClient.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID
@@ -159,24 +186,20 @@ app.post('/api/auth/google', async (req, res) => {
     const payload = ticket.getPayload();
     const { email, name, sub: googleId } = payload;
 
-    // Find if user cluster map already exists via email or googleId
     let user = await User.findOne({ email });
     let isNewUser = false;
 
     if (!user) {
       isNewUser = true;
-      // Naya profile compile karein (Bachi hui UI details form preferences se aayengi)
       user = new User({
         fullName: name,
         email: email,
         googleId: googleId,
-        // Default placeholders jab tak step 2 & 3 complete na ho frontend pe
         role: 'Student',
         domain: 'Programming'
       });
       await user.save();
     } else if (!user.googleId) {
-      // Agar email system mein local entry se tha, toh google ID link kardo telemetry ke liye
       user.googleId = googleId;
       await user.save();
     }
@@ -202,7 +225,7 @@ app.post('/api/auth/google', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Google Auth Handshake Error:', error);
+    console.error('❌ [CRYPTO CRASH]: Google Auth Handshake Error:', error);
     res.status(401).json({ 
       success: false, 
       message: 'Cryptographic signature validation failed or unauthorized entity.' 
@@ -210,6 +233,7 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // 4. QUIZ MODULE ENDPOINTS
 const callGeminiForQuestions = async ({ title, syllabusTopics, difficulty, totalQuestions, quizType }) => {
   const topicsList = syllabusTopics && syllabusTopics.length > 0 ? syllabusTopics.join(', ') : 'general programming topics';
@@ -358,5 +382,8 @@ app.post('/api/quizzes/submit', async (req, res) => {
 });
 
 // Port Handshake Listener
+=======
+// --- ENGINE INITIALIZATION ---
+>>>>>>> b1d2629 (adding gemini ai into the project, manish module)
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server online on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 LuminaLearn Engine Online on telemetry port: ${PORT}`));

@@ -2,12 +2,12 @@
 
 /* --- GLOBAL WINDOW RESET AND BACKGROUND BASE CODES --- */
 .lms-premium-viewport {
-  background-color: #020617; /* Exact Dark Slate Black background matching ChatGPT Image Jun 14, 2026, 02_53_10 PM.png */
+  background-color: #020617;
   color: #f8fafc;
   height: 100vh;
   width: 100vw;
   display: grid;
-  grid-template-columns: 280px 1fr; /* Rigid clean UI viewport alignment */
+  grid-template-columns: 280px 1fr;
   font-family: 'Plus Jakarta Sans', sans-serif;
   position: relative;
   overflow: hidden;
@@ -28,7 +28,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 35px;
+  margin-bottom: 25px;
 }
 
 .brand-logo-spark {
@@ -51,6 +51,35 @@
   font-weight: 500;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+/* --- SIDEBAR ACTION CONTAINER --- */
+.sidebar-action-container {
+  padding: 0 0 20px 0;
+}
+
+.sidebar-generate-course-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%);
+  border: none;
+  color: #ffffff;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-generate-course-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+  filter: brightness(1.1);
 }
 
 .sidebar-navigation-mesh {
@@ -81,7 +110,6 @@
   background-color: rgba(255, 255, 255, 0.02);
 }
 
-/* Sidebar Active Tab Border/Glow style match */
 .nav-link-item.is-active {
   background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0.02) 100%);
   border-left: 3px solid #06B6D4;
@@ -167,6 +195,31 @@
   margin: 0;
 }
 
+.header-controls-cluster {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-launch-engine-btn {
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid #06B6D4;
+  color: #06B6D4;
+  font-size: 12px;
+  font-family: monospace;
+  text-transform: uppercase;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.header-launch-engine-btn:hover {
+  background-color: #06B6D4;
+  color: #020617;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+}
+
 .cluster-status-pill-badge {
   font-size: 13px;
   font-weight: 600;
@@ -193,7 +246,13 @@
   font-weight: 700;
 }
 
-/* --- 1. TOP METRIC SYSTEM CARDS HOVER AND STYLE CONTROLS --- */
+.dashboard-layout-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* --- TOP METRIC CARDS SYSTEM --- */
 .metrics-telemetry-grid-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -272,7 +331,6 @@
 .bold-delta { color: #10B981; font-weight: 600; }
 .muted-delta { color: #475569; font-weight: 500; }
 
-/* SVG Graphs internal components layout mapping */
 .sparkline-vector-mock {
   width: 110px;
   height: 40px;
@@ -286,7 +344,6 @@
   overflow: visible;
 }
 
-/* Vector progress circular chart layout mapping code logic */
 .radial-progress-ring-mock {
   position: relative;
   width: 54px;
@@ -321,7 +378,7 @@
   color: #ffffff;
 }
 
-/* --- TWIN CARD MATRIX BLOCKS LAYOUT --- */
+/* --- TWIN CARD BLOCKS LAYOUT --- */
 .central-twin-blocks-grid {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
@@ -376,7 +433,7 @@
 
 .view-all-redirect-btn:hover { background-color: #121e3d; }
 
-/* 2. ACTIVE PROJECT PIPELINES CARD ROWS FRAME RULES */
+/* ACTIVE PROJECT PIPELINES CARD */
 .pipelines-list-scroll-mesh {
   display: flex;
   flex-direction: column;
@@ -477,7 +534,7 @@
   font-weight: 500;
 }
 
-/* 3. QUICK DEPLOY ACTIONS 6 CARDS SYSTEM LAYOUT GRID CODES */
+/* QUICK DEPLOY ACTIONS GRID */
 .quick-actions-six-grid-mesh {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -538,6 +595,7 @@
   display: grid;
   grid-template-columns: 1.25fr 1fr;
   gap: 24px;
+  margin-top: auto;
 }
 
 .bottom-horizontal-strip-card {
@@ -602,7 +660,6 @@
   border-radius: 50%;
 }
 
-/* Custom Checkbox Input Slider Toggle Switch CSS Engine Mapping */
 .ui-toggle-switch-slider-label {
   position: relative;
   display: inline-block;
@@ -648,11 +705,7 @@ input:checked + .toggle-switch-slider-round-bar:before {
   background-color: #ffffff;
 }
 
-/* --- TELEMETRY COLOR UTILITIES --- */
-.text-cyan { color: #06B6D4; }
-.text-purple { color: #8B5CF6; }
-
-/* Responsive Grid Adaptation Breakpoints */
+/* Grid Breakpoint Adapter */
 @media (max-width: 1280px) {
   .central-twin-blocks-grid, .bottom-telemetry-double-strip-row {
     grid-template-columns: 1fr;

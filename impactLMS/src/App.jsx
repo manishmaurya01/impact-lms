@@ -6,7 +6,6 @@ import Login from './components/Authentication/Login/Login.jsx';
 import Register from './components/Authentication/Register/Register.jsx';
 import Dashboard from './components/Dashboard/Dashboard.jsx';
 
-
 function App() {
   return (
     <Router>
@@ -19,6 +18,8 @@ function App() {
         
         {/* Secure Authorization Login Route */}
         <Route path="/login" element={<Login />} />
+        
+        {/* Core Workspace Dashboard Telemetry Node */}
         <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </Router>
