@@ -35,7 +35,7 @@ function AICourseIntake({ onGenerationComplete }) {
     return () => clearInterval(progressInterval);
   }, [isGenerating]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => { 
     e.preventDefault();
     if (!inputPrompt.trim() || isGenerating) return;
 
