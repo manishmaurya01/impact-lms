@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { compileNeuralLearningPath } from '../.././components/services/geminiService';
 import './AICourseIntake.css';
 
 function AICourseIntake({ onGenerationComplete }) {
@@ -11,8 +10,8 @@ function AICourseIntake({ onGenerationComplete }) {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [currentStageMessage, setCurrentStageMessage] = useState('System Idle');
   const [systemLogs, setSystemLogs] = useState([
-    "LOG_STAMP: [OK] Neural Cluster handshakes resolved successfully.",
-    "GEMINI_CORE: Ready to stream level-based multi-domain arrays."
+    "LOG_STAMP: [OK] Security Token interceptors initialized.",
+    "STATUS: API endpoint listener ready at http://localhost:5000"
   ]);
 
   const pushLogLine = (message) => {
@@ -22,16 +21,14 @@ function AICourseIntake({ onGenerationComplete }) {
   useEffect(() => {
     let progressInterval;
     if (isGenerating) {
-      console.log("[INTAKE_COMPONENT] Initializing simulated progress feedback timers...");
       setGenerationProgress(0);
       progressInterval = setInterval(() => {
         setGenerationProgress((prev) => {
-          if (prev >= 92) {
+          if (prev >= 90) {
             clearInterval(progressInterval);
-            return 92;
+            return 90; // Hold at 90% until backend server commits to Mongo
           }
-          const nextVal = prev + Math.floor(Math.random() * 8) + 3;
-          return nextVal > 92 ? 92 : nextVal;
+          return prev + Math.floor(Math.random() * 8) + 4;
         });
       }, 200);
     }
@@ -40,42 +37,55 @@ function AICourseIntake({ onGenerationComplete }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("[INTAKE_COMPONENT] Form submitted by user.");
-    console.log(`[INTAKE_COMPONENT] Capturing inputs -> Prompt: "${inputPrompt}" | Level: "${selectedLevel}"`);
-
-    if (!inputPrompt.trim() || isGenerating) {
-      console.warn("[INTAKE_COMPONENT] Request blocked. Input text fields are empty or generation loop is already compiling.");
-      return;
-    }
+    if (!inputPrompt.trim() || isGenerating) return;
 
     setIsGenerating(true);
     setErrorLogs(null);
-    setCurrentStageMessage('Compiling Prompt tokens... Routing queries handshake...');
-    pushLogLine(`[INITIALIZE] Triggering compilation pipeline workflow.`);
+    setCurrentStageMessage('Routing parameters payload to Node.js backend cluster...');
+    pushLogLine(`[INITIALIZE] Compiling neural prompt request tracks.`);
 
     try {
-      console.log("[INTAKE_COMPONENT] Dispaching control thread execution to geminiService...");
-      const resultData = await compileNeuralLearningPath(inputPrompt, selectedLevel);
+      // 1. Fetch user authorization token stored during login node
+      const activeSessionToken = localStorage.getItem('token'); 
+      if (!activeSessionToken) {
+        throw new Error("User authorization token missing. Please re-login to establish session identifiers.");
+      }
+
+      // 2. Trigger Express Pipeline Server Node directly
+      console.log("[FRONTEND_INTAKE] Dispaching request to Express server...");
+      const response = await fetch('http://localhost:5000/api/courses/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeSessionToken}` // Validates secure JWT encapsulation
+        },
+        body: JSON.stringify({
+          prompt: inputPrompt,
+          level: selectedLevel
+        })
+      });
+
+      const serverPayloadJson = await response.json();
+
+      if (!response.ok || !serverPayloadJson.success) {
+        throw new Error(serverPayloadJson.error || "Backend pipeline returned an operational error exception.");
+      }
+
+      console.log("[FRONTEND_INTAKE] MongoDB Database commit verified successfully:", serverPayloadJson.data);
       
-      console.log("[INTAKE_COMPONENT] Data returned successfully from service model module.");
-      console.log("[INTAKE_COMPONENT] Checking content validation rules:", resultData);
-
       setGenerationProgress(100);
-      setCurrentStageMessage('Path tree build complete. Executing callbacks triggers...');
-      pushLogLine("[SUCCESS] ResponseSchema mapping verified.");
+      setCurrentStageMessage('Handshake resolved. Syncing dynamic portfolio states...');
+      pushLogLine("[SUCCESS] Course saved into MongoDB collection: courses");
 
-      // Check if the callback function exists before execution hook
+      // 3. Emit saved model payload directly to parent viewport handler
       if (typeof onGenerationComplete === 'function') {
-        console.log("[INTAKE_COMPONENT] Firing 'onGenerationComplete' layout callback to parent...");
-        onGenerationComplete(resultData);
-      } else {
-        console.error("[INTAKE_COMPONENT] [CRITICAL] 'onGenerationComplete' prop is not a valid callback function!");
+        onGenerationComplete(serverPayloadJson.data);
       }
 
     } catch (err) {
-      console.error("[INTAKE_COMPONENT] Catch block caught error exception:", err);
-      setErrorLogs(err.message || " Handshake connection failed.");
-      pushLogLine(`[CRITICAL_FAILURE] Execution aborted: ${err.message}`);
+      console.error("[FRONTEND_INTAKE_ERROR]", err);
+      setErrorLogs(err.message || "Failed to bridge communication with local port server.");
+      pushLogLine(`[CRITICAL_FAILURE] Transaction aborted: ${err.message}`);
       setIsGenerating(false);
     }
   };
@@ -90,13 +100,13 @@ function AICourseIntake({ onGenerationComplete }) {
 
       <div className="intake-workspace-asymmetric-grid">
         
-        {/* SIDE CONSOLE COMPILER MODULE */}
+        {/* SIDE LIVE MONITOR CONSOLE */}
         <div className="central-workspace-card telemetry-monitoring-sidebar-card">
           <h3 className="text-xs uppercase tracking-wider font-bold text-white mb-4">Core Monitor</h3>
           <div className="telemetry-stat-mini-mesh-stack">
             <div className="telemetry-stat-row">
-              <span className="lbl-stat">Engine:</span>
-              <span className="val-stat">{isGenerating ? 'PROCESSING' : 'READY'}</span>
+              <span className="lbl-stat">DB Commit:</span>
+              <span className="val-stat">{isGenerating ? 'WRITING...' : 'SYNC_OK'}</span>
             </div>
             <div className="telemetry-stat-row">
               <span className="lbl-stat">Progress:</span>
@@ -109,11 +119,11 @@ function AICourseIntake({ onGenerationComplete }) {
           <div className="live-telemetry-percentage-sub-text"><span>{currentStageMessage}</span></div>
         </div>
 
-        {/* INPUT LAYOUT AREA */}
+        {/* PROMPT ACTION CARD CONTAINER */}
         <form onSubmit={handleSubmit} className="prompt-matrix-form-card">
           {errorLogs && (
             <div style={{ color: '#ef4444', background: 'rgba(239,68,68,0.05)', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '14px' }}>
-              <strong>Error Trace:</strong> {errorLogs}
+              <strong>Handshake Fault:</strong> {errorLogs}
             </div>
           )}
 
@@ -123,7 +133,7 @@ function AICourseIntake({ onGenerationComplete }) {
               <textarea
                 value={inputPrompt}
                 onChange={(e) => setInputPrompt(e.target.value)}
-                placeholder="Example: Complete roadmap for Angular..."
+                placeholder="Example: Complete roadmap for Angular from scratch..."
                 required
                 disabled={isGenerating}
               />
@@ -150,13 +160,13 @@ function AICourseIntake({ onGenerationComplete }) {
 
           <div className="prompt-submit-action-row">
             <button type="submit" className="prompt-matrix-submit-btn" disabled={isGenerating}>
-              {isGenerating ? `Compiling [${generationProgress}%]` : 'Generate Path Architecture'}
+              {isGenerating ? `Saving to Database [${generationProgress}%]` : 'Generate & Commit to DB'}
             </button>
           </div>
         </form>
       </div>
 
-      {/* SYSTEM PIPELINE STREAM TERMINAL */}
+      {/* STREAM LOGGER FOOTER NODES */}
       <div className="central-workspace-card system-terminal-activity-logs-footer">
         <div className="logs-feed-streaming-mesh">
           {systemLogs.map((logStr, idx) => (

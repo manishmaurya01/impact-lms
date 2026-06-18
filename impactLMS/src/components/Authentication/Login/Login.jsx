@@ -4,11 +4,20 @@ import * as THREE from 'three';
 import './Login.css';
 
 function Login() {
-  const navigate = useNavigate(); // Hook initialized for smooth dashboard redirection
+  const navigate = useNavigate();
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const canvasRef = useRef(null);
   const stageRef = useRef(null);
+
+  // 🚀 CRITICAL RE-ENGINEERING 1: AUTO-REDIRECT IF SESSION ACTIVE
+  useEffect(() => {
+    const verifiedSessionToken = localStorage.getItem('token');
+    if (verifiedSessionToken) {
+      console.log("[AUTH_GUARD] Active identity token found. Redirecting straight to terminal...");
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   useEffect(() => {
     // --- THREE.JS LIVE CYBER QUARTZ KINETIC CORE ENGINE ---
@@ -32,7 +41,6 @@ function Login() {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
 
-      // 1. STUDIO LIGHTSETS (Cinematic highlights setup)
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
       scene.add(ambientLight);
 
@@ -48,9 +56,7 @@ function Login() {
       cyanGlowLight.position.set(-60, -40, 40);
       scene.add(cyanGlowLight);
 
-      // 2. THE CORE JEWEL: High-End Obsidian Crystal Geometry
       const crystalGeo = new THREE.OctahedronGeometry(22, 0);
-      
       const crystalMat = new THREE.MeshPhysicalMaterial({
         color: 0x0f172a,
         metalness: 0.9,
@@ -66,7 +72,6 @@ function Login() {
       coreCrystal = new THREE.Mesh(crystalGeo, crystalMat);
       scene.add(coreCrystal);
 
-      // 3. CYBER ORBITAL TRACKS: Dynamic Tech Rings
       const ringGeo1 = new THREE.TorusGeometry(34, 0.4, 8, 100);
       const ringMat1 = new THREE.MeshStandardMaterial({
         color: 0x06B6D4,
@@ -92,7 +97,6 @@ function Login() {
       orbitalRing2.rotation.y = Math.PI / 4;
       scene.add(orbitalRing2);
 
-      // 4. FLOATING DATA SWARM: Ambient Matrix Dust
       const starsCount = 250;
       const starsGeo = new THREE.BufferGeometry();
       const starsPositions = new Float32Array(starsCount * 3);
@@ -134,7 +138,6 @@ function Login() {
 
         if (orbitalRing1) orbitalRing1.rotation.z = time * 0.4;
         if (orbitalRing2) orbitalRing2.rotation.z = -time * 0.25;
-
         if (stardustParticles) stardustParticles.rotation.y = time * 0.02;
 
         mouseX += (targetX - mouseX) * 0.06;
@@ -179,38 +182,46 @@ function Login() {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
   };
 
- const handleLoginSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    const response = await fetch('http://localhost:5000/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(loginData)
-    });
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      console.log("[LOGIN_SUBMIT] Dispatching session encryption tokens...");
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginData)
+      });
 
-    const data = await response.json();
-    if (response.ok) {
-      alert("🔓 Handshake Successful! Redirection sequence active.");
-      // Security Token browser me store karein taaki dashboard open ho sake
-      localStorage.setItem('userToken', data.token);
-      navigate('/dashboard');
-    } else {
-      alert(`❌ Error: ${data.message}`);
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        console.log("[LOGIN_SUCCESS] Synchronization resolved. Writing session payload tokens.");
+        
+        // 🚀 CRITICAL FIXED LINK: Storing token explicitly inside "token" matching intake expectations
+        localStorage.setItem('token', data.token);
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
+
+        alert("🔓 Handshake Successful! Redirection sequence active.");
+        navigate('/dashboard');
+      } else {
+        alert(`❌ Error: ${data.message || 'Authentication rejected.'}`);
+      }
+    } catch (err) {
+      console.error("Connection failed:", err);
+      alert("Backend Server not running!");
     }
-  } catch (err) {
-    console.error("Connection failed:", err);
-    alert("Backend Server not running!");
-  }
-};
+  };
+
   return (
     <div className="lms-unified-center-viewport">
       <div className="bg-radial-blur-shades"></div>
       <div className="bg-canvas-dot-matrix"></div>
 
-      {/* STRICT 1:1 BALANCE INTERACTIVE STRUCTURE PLATFORM */}
       <div className="master-symmetric-dashboard-hub">
         
-        {/* LEFT COMPONENT MODULE: GLOSSY LOGIN PANEL */}
+        {/* LEFT PANEL MODULE */}
         <div className="dashboard-panel-half left-form-panel">
           <div className="panel-sheen-liner"></div>
           
@@ -273,7 +284,7 @@ function Login() {
           </div>
         </div>
 
-        {/* RIGHT COMPONENT MODULE: CRYSTAL CONSOLE PLATFORM */}
+        {/* RIGHT CRYSTAL GRAPHICS PANEL */}
         <div className="dashboard-panel-half right-three-panel">
           <div className="panel-sheen-liner"></div>
           
@@ -285,7 +296,6 @@ function Login() {
             <p>Where complex syllabi dissolve into clean, custom daily learning streaks. Powered by cognitive AI curation models designed for infinite memory retention.</p>
           </div>
 
-          {/* DYNAMIC THREE.JS GRAPHICS THEATER LAB */}
           <div className="threejs-embedded-stage" ref={stageRef}>
             <canvas id="quantum3DCanvas" ref={canvasRef}></canvas>
           </div>

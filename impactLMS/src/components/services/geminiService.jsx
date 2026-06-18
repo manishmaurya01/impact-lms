@@ -1,41 +1,41 @@
 import { GoogleGenAI } from '@google/genai';
 
-// Safely pull the key token from environment layout layers
-const aiApiKey = "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
+const aiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-console.log("[TELEMETRY_CORE] Verifying secure local token stream allocation...");
+console.log("[GEMINI_SERVICE_INIT] Checking local environment token mapping...");
 if (!aiApiKey) {
-  console.error("[CRITICAL_ALERT] VITE_GEMINI_API_KEY is missing from your .env file setup!");
+  console.error("[GEMINI_SERVICE_INIT] [CRITICAL] VITE_GEMINI_API_KEY key is missing inside your .env file!");
 } else {
-  console.log("[OK] Secure API Handshake token integrated successfully.");
+  console.log("[GEMINI_SERVICE_INIT] [OK] Token detected successfully.");
 }
 
 const ai = new GoogleGenAI({ apiKey: aiApiKey });
 
-/**
- * Generates an automated 4-day chronological course timeline matrix
- * @param {string} userPrompt - User topic descriptor string
- * @param {string} depthLevel - Track target constraints (Beginner, Intermediate, Advanced)
- */
 export const compileNeuralLearningPath = async (userPrompt, depthLevel) => {
-  console.log(`[SERVICE_THREAD] Booting compilation loop for query: "${userPrompt}"`);
+  console.log(`[GEMINI_SERVICE_CALL] Executing with userPrompt: "${userPrompt}" | Level: "${depthLevel}"`);
+  
+  if (!aiApiKey) {
+    console.error("[GEMINI_SERVICE_CALL] Aborting block. VITE_GEMINI_API_KEY is completely missing.");
+    throw new Error("Missing VITE_GEMINI_API_KEY configuration flag inside .env variables mapping.");
+  }
 
-  const corePromptInstructions = `
-    You are an expert AI Curriculum Engineer. Create a personalized learning roadmap for: "${userPrompt}" matching track level: "${depthLevel}".
+  const strategicInstructions = `
+    You are an AI Curriculum Engineer. Create a personalized learning roadmap for: "${userPrompt}" matching track level: "${depthLevel}".
     Structure a strict day-wise chronological matrix mapping exactly 4 days.
     
-    CRITICAL SCHEMA BOUNDARY RULES:
+    CRITICAL RULES:
     1. Day 1 must have status: "unlocked". Days 2, 3, and 4 must have status: "locked".
-    2. Divide topics, sub-topics, assignments, and quizzes strictly chronologically.
-    3. Do NOT include actual full test questions banks. Provide short descriptive text parameters inside 'quizTopic' and 'assignmentObjective' fields.
+    2. Do NOT include actual full test questions banks. Provide short titles inside 'quizTopic' and 'assignmentObjective' keys.
     
-    Return ONLY a single valid JSON object following the schema constraint rules. Do not append codeblock annotations.
+    Return ONLY a single valid JSON object following the schema constraint rules.
   `;
 
   try {
+    console.log("[GEMINI_SERVICE_CALL] Sending payload handshake to Google serversless gateway...");
+    
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: corePromptInstructions,
+      model: 'gemini-1.5-pro',
+      contents: strategicInstructions,
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
@@ -91,12 +91,24 @@ export const compileNeuralLearningPath = async (userPrompt, depthLevel) => {
       }
     });
 
-    console.log("[SERVICE_THREAD] Stream data package resolved from Google servers.");
-    const parsedData = JSON.parse(response.text.trim());
+    console.log("[GEMINI_SERVICE_CALL] Raw response text arrived from API instance:");
+    console.log(response.text);
+
+    let cleanText = response.text.trim();
+    
+    // Safety check for raw code block annotations
+    if (cleanText.startsWith('```json')) cleanText = cleanText.substring(7);
+    else if (cleanText.startsWith('```')) cleanText = cleanText.substring(3);
+    if (cleanText.endsWith('```')) cleanText = cleanText.substring(0, cleanText.length - 3);
+
+    console.log("[GEMINI_SERVICE_CALL] Sanitization finished. Attempting standard JSON parsing loop...");
+    const parsedData = JSON.parse(cleanText.trim());
+    
+    console.log("[GEMINI_SERVICE_CALL] [SUCCESS] JSON data structure successfully hydrated:", parsedData);
     return parsedData;
 
   } catch (error) {
-    console.error("[SERVICE_THREAD] [CRITICAL_FAIL] Error caught in execution pipeline block:", error);
+    console.error("[GEMINI_SERVICE_CALL] [CRITICAL_FAIL] Error occurred inside execution pipeline block:", error);
     throw error;
   }
 };

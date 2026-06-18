@@ -1,72 +1,93 @@
-// Add this at the very top of your server.js file
+// Add this at the very top of your server.js file to resolve local DNS loops smoothly
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
-require('dotenv').config();
+const { GoogleGenAI } = require('@google/genai');
 
+// Load configurations fallback mapping from models folder
 const User = require('./models/User');
+<<<<<<< HEAD
 const ScheduledQuiz = require('./models/ScheduledQuiz');
 const QuizAttempt = require('./models/QuizAttempt');
 const crypto = require('crypto');
+=======
+const Course = require('./models/Course');
+>>>>>>> 55c2d34 (new commit)
 
 const app = express();
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// --- PIPELINE MIDDLEWARE ---
+// --- GLOBAL CONFIGURATION SETTINGS ---
+// Hardcoded token validation pipeline parameters to bypass environment breaks completely
+const HARDCODED_GEMINI_KEY = "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
+const JWT_SECRET_KEY = "your_super_secret_session_encryption_key_matrix_99";
+const GOOGLE_CLIENT_ID_KEY = "your_google_client_id_here";
+const MONGO_URI_FALLBACK = "mongodb://127.0.0.1:27017/LuminaLearn";
+
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID_KEY);
+
+console.log("-----------------------------------------------------------------");
+console.log("🔑 [AI_INIT]: Embedding Core Gemini Client with Direct Token Payload Stream.");
+console.log("-----------------------------------------------------------------");
+
+// Initialize official GoogleGenAI Client using direct authorization parameters
+const ai = new GoogleGenAI({ apiKey: HARDCODED_GEMINI_KEY });
+
+// --- PIPELINE CORE MIDDLEWARES ---
 app.use(cors()); 
 app.use(express.json()); 
-
-// --- TELEMETRY DATA LAYER CONNECTIVITY ---
-const mongoURI = "mongodb://127.0.0.1:27017/LuminaLearn";
 
 // Defensive Configuration to prevent Mongoose from buffering queries indefinitely on connection drops
 mongoose.set('bufferCommands', false);
 
-mongoose.connect(mongoURI, {
-  serverSelectionTimeoutMS: 5000, // Terminate connection attempt after 5s if network is blocked
+// Telemetry database connectivity setup
+mongoose.connect(MONGO_URI_FALLBACK, {
+  serverSelectionTimeoutMS: 5000, 
 })
-  .then(() => console.log('📡 [TELEMETRY]: Connected to MongoDB Atlas Cloud Database successfully.'))
+  .then(() => console.log('📡 [TELEMETRY]: Connected to MongoDB Cloud Architecture Engine successfully.'))
   .catch(err => {
     console.error('❌ [DATA LAYER FAULT]: MongoDB Connection Error:', err.message);
-    console.error('⚠️ [DIAGNOSTIC]: Verify your local network DNS, or ensure your public IP is whitelisted in Atlas Network Access.');
   });
 
+// --- JWT IDENTITY MATRIX VERIFICATION SUBSYSTEM ---
+const authenticateSessionToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; 
 
-// --- AUTHENTICATION ROUTING CAPSULES ---
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Access denied. Workspace token identity mapping missing.' });
+  }
 
-// 1. SIGN UP (REGISTER NODE)
+  jwt.verify(token, JWT_SECRET_KEY, (err, decodedPayload) => {
+    if (err) {
+      return res.status(403).json({ success: false, message: 'Invalid token telemetry matrix signature or expired session.' });
+    }
+    req.user = decodedPayload; 
+    next();
+  });
+};
+
+
+// --- 1. AUTHENTICATION ROUTING CAPSULES ---
+
+// SIGN UP (REGISTER NODE)
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { 
-      fullName, 
-      email, 
-      password, 
-      role, 
-      domain, 
-      commitment, 
-      experience, 
-      learningStyle 
-    } = req.body;
+    const { fullName, email, password, role, domain, commitment, experience, learningStyle } = req.body;
 
-    // Check if identity mapping already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Identity Node already active with this email address.' 
-      });
+      return res.status(400).json({ success: false, message: 'Identity Node already active with this email address.' });
     }
 
-    // Secure Password Hashing (Blowfish Cryptography)
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Commit new user profile to database cluster
     const newUser = new User({
       fullName,
       email,
@@ -79,108 +100,68 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
     await newUser.save();
-
-    res.status(201).json({ 
-      success: true, 
-      message: 'Workspace credentials initialized! User Node compiled successfully.' 
-    });
+    res.status(201).json({ success: true, message: 'Workspace credentials initialized! User Node compiled successfully.' });
 
   } catch (error) {
     console.error('❌ [COMPILE FAULT]: Registration process crashed:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Symmetric internal system compile error during registration.' 
-    });
+    res.status(500).json({ success: false, message: 'Symmetric internal system compile error during registration.' });
   }
 });
 
-// 2. SIGN IN (LOGIN NODE)
+// SIGN IN (LOGIN NODE)
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Ensure database connection is up before evaluating
     if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        success: false,
-        message: 'Database layer is offline. Telemetry synchronization failed.'
-      });
+      return res.status(503).json({ success: false, message: 'Database layer is offline. Telemetry synchronization failed.' });
     }
 
-    // Query active node credentials
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid email address or unauthorized credentials setup.' 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid email address or unauthorized credentials setup.' });
     }
 
-    // Protection for Google-Only registered profiles
     if (!user.password && user.googleId) {
-      return res.status(400).json({
-        success: false,
-        message: 'This account uses Google Sign-In. Please click the Google button to access.'
-      });
+      return res.status(400).json({ success: false, message: 'This account uses Google Sign-In. Please click the Google button to access.' });
     }
 
-    // Decrypt and compare input hashes
     const isPasswordMatch = await bcrypt.compare(password, user.password);
     if (!isPasswordMatch) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid email address or unauthorized credentials setup.' 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid email address or unauthorized credentials setup.' });
     }
 
-    // Sign Secure JWT Authentication Token (24-hour workspace session)
     const sessionToken = jwt.sign(
       { userId: user._id, email: user.email },
-      process.env.JWT_SECRET,
+      JWT_SECRET_KEY,
       { expiresIn: '24h' }
     );
 
     res.status(200).json({
       success: true,
       token: sessionToken,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        domain: user.domain
-      }
+      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, domain: user.domain }
     });
 
   } catch (error) {
     console.error('❌ [AUTH CORRUPTION]: Login process crashed:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Symmetric internal system compile error during login.' 
-    });
+    res.status(500).json({ success: false, message: 'Symmetric internal system compile error during login.' });
   }
 });
 
-// 3. SECURE GOOGLE OAUTH HANDSHAKE HANDLER
+// SECURE GOOGLE OAUTH HANDSHAKE HANDLER
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({ success: false, message: 'Google identification token missing.' });
-    }
+    if (!token) return res.status(400).json({ success: false, message: 'Google identification token missing.' });
 
     if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        success: false,
-        message: 'Database layer is offline. Telemetry synchronization failed.'
-      });
+      return res.status(503).json({ success: false, message: 'Database layer is offline. Telemetry synchronization failed.' });
     }
 
-    // Verify token payload integrity with Google cryptographic servers
     const ticket = await googleClient.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: GOOGLE_CLIENT_ID_KEY
     });
 
     const payload = ticket.getPayload();
@@ -191,23 +172,16 @@ app.post('/api/auth/google', async (req, res) => {
 
     if (!user) {
       isNewUser = true;
-      user = new User({
-        fullName: name,
-        email: email,
-        googleId: googleId,
-        role: 'Student',
-        domain: 'Programming'
-      });
+      user = new User({ fullName: name, email: email, googleId: googleId, role: 'Student', domain: 'Programming' });
       await user.save();
     } else if (!user.googleId) {
       user.googleId = googleId;
       await user.save();
     }
 
-    // Sign Application Cluster Web Token
     const sessionToken = jwt.sign(
       { userId: user._id, email: user.email },
-      process.env.JWT_SECRET,
+      JWT_SECRET_KEY,
       { expiresIn: '24h' }
     );
 
@@ -215,24 +189,117 @@ app.post('/api/auth/google', async (req, res) => {
       success: true,
       token: sessionToken,
       isNewUser,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        domain: user.domain
-      }
+      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, domain: user.domain }
     });
 
   } catch (error) {
     console.error('❌ [CRYPTO CRASH]: Google Auth Handshake Error:', error);
-    res.status(401).json({ 
+    res.status(401).json({ success: false, message: 'Cryptographic signature validation failed or unauthorized entity.' });
+  }
+});
+
+
+// --- 2. DYNAMIC AI ROADMAPS CONTROL SUITE ROLES ---
+
+/**
+ * Route: POST /api/courses/generate
+ * Description: Streams responseSchema directly via embedded API key, and saves course inside DB.
+ */
+app.post('/api/courses/generate', authenticateSessionToken, async (req, res) => {
+  const { prompt, level } = req.body;
+  const activeUserId = req.user.userId;
+
+  if (!prompt) return res.status(400).json({ success: false, error: "Missing parameter instructions inside request body." });
+
+  const strategicPromptSystemDesign = `
+    Create a personalized 4-day learning roadmap for: "${prompt}" matching level: "${level || 'Beginner'}".
+    Structure a strict day-wise chronological matrix mapping exactly 4 days.
+    Return ONLY a single valid JSON object following the schema format. Do not include markdown codeblocks or triple backticks.
+  `;
+
+  try {
+    console.log(`[AI_ENGINE] Initializing generation query chain for user node: ${activeUserId}...`);
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: strategicPromptSystemDesign,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            title: { type: 'STRING' },
+            level: { type: 'STRING' },
+            modules: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  dayId: { type: 'INTEGER' },
+                  title: { type: 'STRING' },
+                  status: { type: 'STRING' },
+                  duration: { type: 'STRING' },
+                  objective: { type: 'STRING' },
+                  topics: { type: 'ARRAY', items: { type: 'STRING' } },
+                  schedules: {
+                    type: 'OBJECT',
+                    properties: {
+                      quiz: {
+                        type: 'OBJECT',
+                        properties: { name: { type: 'STRING' }, quizTopic: { type: 'STRING' }, duration: { type: 'STRING' } },
+                        required: ['name', 'quizTopic', 'duration']
+                      },
+                      assignment: {
+                        type: 'OBJECT',
+                        properties: { name: { type: 'STRING' }, assignmentObjective: { type: 'STRING' }, complexity: { type: 'STRING' } },
+                        required: ['name', 'assignmentObjective', 'complexity']
+                      }
+                    },
+                    required: ['quiz', 'assignment']
+                  }
+                },
+                required: ['dayId', 'title', 'status', 'duration', 'objective', 'topics', 'schedules']
+              }
+            }
+          },
+          required: ['title', 'level', 'modules']
+        }
+      }
+    });
+
+    console.log("[AI_ENGINE_RAW_TEXT_STREAM]: Data packages successfully fetched.");
+
+    let jsonRawString = response.text.trim();
+    if (jsonRawString.startsWith('```')) {
+      jsonRawString = jsonRawString.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    }
+
+    const compiledResponseData = JSON.parse(jsonRawString);
+    
+    // Links course document dynamically to current logged-in user id
+    const dynamicCourseDocument = new Course({
+      userId: activeUserId,
+      title: compiledResponseData.title,
+      level: compiledResponseData.level,
+      modules: compiledResponseData.modules
+    });
+
+    await dynamicCourseDocument.save();
+    console.log(`[DB_SUCCESS] Dynamic roadmap successfully committed to MongoDB.`);
+    
+    return res.status(201).json({ success: true, data: dynamicCourseDocument });
+
+  } catch (error) {
+    console.error("❌ [AI_GENERATION_FAULT] Detailed Error Matrix Stack:", error);
+    return res.status(500).json({ 
       success: false, 
-      message: 'Cryptographic signature validation failed or unauthorized entity.' 
+      error: "Internal generation pipeline fault failed to compile roadmap.", 
+      details: error.message 
     });
   }
 });
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 // 4. QUIZ MODULE ENDPOINTS
 const callGeminiForQuestions = async ({ title, syllabusTopics, difficulty, totalQuestions, quizType }) => {
@@ -387,3 +454,20 @@ app.post('/api/quizzes/submit', async (req, res) => {
 >>>>>>> b1d2629 (adding gemini ai into the project, manish module)
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 LuminaLearn Engine Online on telemetry port: ${PORT}`));
+=======
+/**
+ * Route: GET /api/courses
+ * Description: Fetches logs from MongoDB generated only by the active user.
+ */
+app.get('/api/courses', authenticateSessionToken, async (req, res) => {
+  try {
+    console.log(`[DB_FETCH] Pulling course histories mapping for active user session token: ${req.user.userId}`);
+    const userSpecificCourseHistory = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: userSpecificCourseHistory });
+  } catch (error) {
+    console.error("❌ [DB_FETCH_FAULT] Failed to retrieve records:", error.message);
+    res.status(500).json({ success: false, message: "Failed to map historical compiled roadmap logs indices from server." });
+  }
+});
+
+>>>>>>> 55c2d34 (new commit)
