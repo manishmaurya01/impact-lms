@@ -1,4 +1,4 @@
-// Add this at the very top of your server.js file to resolve local DNS loops smoothly
+// Windows systems me local networks loopback connection errors bypass karne ke liye DNS override
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
@@ -7,82 +7,118 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
-const { GoogleGenAI } = require('@google/genai');
+require('dotenv').config();
 
-// Load configurations fallback mapping from models folder
+// Mongoose Models mapping load karo (Ensure ye models/ directory me same filename se configured hain)
 const User = require('./models/User');
-<<<<<<< HEAD
+const Course = require('./models/Course');
 const ScheduledQuiz = require('./models/ScheduledQuiz');
 const QuizAttempt = require('./models/QuizAttempt');
-const crypto = require('crypto');
-=======
-const Course = require('./models/Course');
->>>>>>> 55c2d34 (new commit)
 
 const app = express();
 
-// --- GLOBAL CONFIGURATION SETTINGS ---
-// Hardcoded token validation pipeline parameters to bypass environment breaks completely
-const HARDCODED_GEMINI_KEY = "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
-const JWT_SECRET_KEY = "your_super_secret_session_encryption_key_matrix_99";
-const GOOGLE_CLIENT_ID_KEY = "your_google_client_id_here";
-const MONGO_URI_FALLBACK = "mongodb://127.0.0.1:27017/LuminaLearn";
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/LuminaLearn";
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms_key_99";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "245919262652-dpo9mg4hn6l2578gdv87ttgf8lfsg2tc.apps.googleusercontent.com";
 
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID_KEY);
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-console.log("-----------------------------------------------------------------");
-console.log("🔑 [AI_INIT]: Embedding Core Gemini Client with Direct Token Payload Stream.");
-console.log("-----------------------------------------------------------------");
+app.use(cors());
+app.use(express.json()); // Postman body parse karne ke liye crucial parser
 
-// Initialize official GoogleGenAI Client using direct authorization parameters
-const ai = new GoogleGenAI({ apiKey: HARDCODED_GEMINI_KEY });
-
-// --- PIPELINE CORE MIDDLEWARES ---
-app.use(cors()); 
-app.use(express.json()); 
-
-// Defensive Configuration to prevent Mongoose from buffering queries indefinitely on connection drops
+// Buffer logic false karo taaki database slow transitions drop timeout issues create na karein
 mongoose.set('bufferCommands', false);
 
-// Telemetry database connectivity setup
-mongoose.connect(MONGO_URI_FALLBACK, {
-  serverSelectionTimeoutMS: 5000, 
-})
-  .then(() => console.log('📡 [TELEMETRY]: Connected to MongoDB Cloud Architecture Engine successfully.'))
+// Local ya cloud MongoDB connection initialization
+mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
+  .then(() => console.log('📡 [DATABASE_CONNECTED]: Local MongoDB database se link successfully connect ho chuka hai.'))
   .catch(err => {
-    console.error('❌ [DATA LAYER FAULT]: MongoDB Connection Error:', err.message);
+    console.error('❌ [DATABASE_OFFLINE]: MongoDB link fails. Ensure Mongo service background me active hai.');
+    console.error(`⚠️ [DIAGNOSTIC]: ${err.message}`);
   });
 
-// --- JWT IDENTITY MATRIX VERIFICATION SUBSYSTEM ---
-const authenticateSessionToken = (req, res, next) => {
+// --- GOOGLE GEMINI CORE REST CLIENT ---
+// Standard lowercase schema implementation to prevent 400 Bad Request error
+const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
+  const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
+  // Crucial: Use strictly "gemini-2.5-flash-preview-09-2025" to prevent 404 model errors inside sandbox environments
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+  
+  const requestPayload = {
+    contents: [{ parts: [{ text: userQuery }] }],
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: customSchema
+    }
+  };
+
+  let retryDelay = 1000; 
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestPayload)
+      });
+      
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Gemini status query error code: ${response.status} - ${errText}`);
+      }
+      
+      const responseData = await response.json();
+      const generatedText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (generatedText) {
+        return generatedText;
+      }
+      throw new Error("Payload text format parsing fails.");
+    } catch (err) {
+      console.warn(`⚠️ [GEMINI_RETRY]: Connection attempt ${attempt + 1} failed. Re-trying in ${retryDelay}ms... Error: ${err.message}`);
+      if (attempt === 4) {
+        throw new Error(`Gemini attempts exhausted. Trace: ${err.message}`);
+      }
+      // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      retryDelay *= 2;
+    }
+  }
+};
+
+// --- AUTH TOKEN SECURITY BARRIER ---
+const authorizeSessionToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; 
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ success: false, message: 'Access denied. Workspace token identity mapping missing.' });
+    return res.status(401).json({ success: false, message: 'Access denied. Authorization token parameter missing.' });
   }
 
-  jwt.verify(token, JWT_SECRET_KEY, (err, decodedPayload) => {
+  jwt.verify(token, JWT_SECRET, (err, decodedUser) => {
     if (err) {
-      return res.status(403).json({ success: false, message: 'Invalid token telemetry matrix signature or expired session.' });
+      return res.status(403).json({ success: false, message: 'Session validation token invalid ya expired hai.' });
     }
-    req.user = decodedPayload; 
+    req.user = decodedUser;
     next();
   });
 };
 
 
-// --- 1. AUTHENTICATION ROUTING CAPSULES ---
+// --- SECTION 1: USER ACCOUNT PORTS ---
 
-// SIGN UP (REGISTER NODE)
+// 1. REGISTER USER
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { fullName, email, password, role, domain, commitment, experience, learningStyle } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Identity Node already active with this email address.' });
+    const matchedIdentity = await User.findOne({ email });
+    if (matchedIdentity) {
+      return res.status(400).json({ success: false, message: 'Is email par pehle se user account exist karta hai.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -100,71 +136,68 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json({ success: true, message: 'Workspace credentials initialized! User Node compiled successfully.' });
+    console.log(`👤 [REGISTERED]: New profile node compiled for: ${email}`);
+    res.status(201).json({ success: true, message: 'Workspace account node generated!' });
 
   } catch (error) {
-    console.error('❌ [COMPILE FAULT]: Registration process crashed:', error);
-    res.status(500).json({ success: false, message: 'Symmetric internal system compile error during registration.' });
+    console.error('❌ [SIGNUP_FAULT]:', error);
+    res.status(500).json({ success: false, message: 'Internal signup validator compile crash.' });
   }
 });
 
-// SIGN IN (LOGIN NODE)
+// 2. STANDARD LOGIN GATEWAY
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ success: false, message: 'Database layer is offline. Telemetry synchronization failed.' });
+      return res.status(503).json({ success: false, message: 'Database process connection is currently offline.' });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid email address or unauthorized credentials setup.' });
+      return res.status(400).json({ success: false, message: 'Credentials check failed. Email ya password matched nahi hai.' });
     }
 
     if (!user.password && user.googleId) {
-      return res.status(400).json({ success: false, message: 'This account uses Google Sign-In. Please click the Google button to access.' });
+      return res.status(400).json({ success: false, message: 'Ye account Google Auth use karta hai. Google SSO button se check karein.' });
     }
 
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-    if (!isPasswordMatch) {
-      return res.status(400).json({ success: false, message: 'Invalid email address or unauthorized credentials setup.' });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Credentials check failed. Email ya password matched nahi hai.' });
     }
 
-    const sessionToken = jwt.sign(
+    const token = jwt.sign(
       { userId: user._id, email: user.email },
-      JWT_SECRET_KEY,
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
     res.status(200).json({
       success: true,
-      token: sessionToken,
+      token,
       user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, domain: user.domain }
     });
 
   } catch (error) {
-    console.error('❌ [AUTH CORRUPTION]: Login process crashed:', error);
-    res.status(500).json({ success: false, message: 'Symmetric internal system compile error during login.' });
+    console.error('❌ [LOGIN_FAULT]:', error);
+    res.status(500).json({ success: false, message: 'Authentication runtime error.' });
   }
 });
 
-// SECURE GOOGLE OAUTH HANDSHAKE HANDLER
+// 3. SECURE GOOGLE SSO HANDSHAKE
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { token } = req.body;
-    if (!token) return res.status(400).json({ success: false, message: 'Google identification token missing.' });
+    if (!token) return res.status(400).json({ success: false, message: 'Google identity validation payload missing.' });
 
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ success: false, message: 'Database layer is offline. Telemetry synchronization failed.' });
-    }
-
-    const ticket = await googleClient.verifyIdToken({
+    const verificationTicket = await googleClient.verifyIdToken({
       idToken: token,
-      audience: GOOGLE_CLIENT_ID_KEY
+      audience: GOOGLE_CLIENT_ID
     });
 
-    const payload = ticket.getPayload();
+    const payload = verificationTicket.getPayload();
     const { email, name, sub: googleId } = payload;
 
     let user = await User.findOne({ email });
@@ -172,302 +205,327 @@ app.post('/api/auth/google', async (req, res) => {
 
     if (!user) {
       isNewUser = true;
-      user = new User({ fullName: name, email: email, googleId: googleId, role: 'Student', domain: 'Programming' });
+      user = new User({
+        fullName: name,
+        email: email,
+        googleId: googleId,
+        role: 'Student',
+        domain: 'Programming'
+      });
       await user.save();
+      console.log(`📡 [SSO_ACTIVE]: Successfully registered Google SSO profile node: ${email}`);
     } else if (!user.googleId) {
       user.googleId = googleId;
       await user.save();
     }
 
-    const sessionToken = jwt.sign(
+    const sessionWebToken = jwt.sign(
       { userId: user._id, email: user.email },
-      JWT_SECRET_KEY,
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
     res.status(200).json({
       success: true,
-      token: sessionToken,
+      token: sessionWebToken,
       isNewUser,
       user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, domain: user.domain }
     });
 
   } catch (error) {
-    console.error('❌ [CRYPTO CRASH]: Google Auth Handshake Error:', error);
-    res.status(401).json({ success: false, message: 'Cryptographic signature validation failed or unauthorized entity.' });
+    console.error('❌ [SSO_CRYPTO_ERROR]: Verify token parameters invalid:', error);
+    res.status(401).json({ success: false, message: 'SSO dynamic signatures verification failed.' });
   }
 });
 
 
-// --- 2. DYNAMIC AI ROADMAPS CONTROL SUITE ROLES ---
+// --- SECTION 2: AI COURSE SYLLABUS OPERATIONS ---
 
-/**
- * Route: POST /api/courses/generate
- * Description: Streams responseSchema directly via embedded API key, and saves course inside DB.
- */
-app.post('/api/courses/generate', authenticateSessionToken, async (req, res) => {
+// 1. GENERATE PERSONALIZED SYLLABUS & COMMIT TO MONGO
+app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const { prompt, level } = req.body;
-  const activeUserId = req.user.userId;
+  const activeUser = req.user.userId;
 
-  if (!prompt) return res.status(400).json({ success: false, error: "Missing parameter instructions inside request body." });
+  if (!prompt) {
+    return res.status(400).json({ success: false, error: 'Goal prompt parameters empty inside requests body.' });
+  }
 
-  const strategicPromptSystemDesign = `
-    Create a personalized 4-day learning roadmap for: "${prompt}" matching level: "${level || 'Beginner'}".
-    Structure a strict day-wise chronological matrix mapping exactly 4 days.
-    Return ONLY a single valid JSON object following the schema format. Do not include markdown codeblocks or triple backticks.
+  const systemInstructions = "You are the advanced pedagogical engine of LuminaLearn Studio. Always respond strictly inside structured JSON parameters matching the target JSON blueprint.";
+  
+  // Enforcing strict lowercase Open API types schema (Crucial for preventing 400 Bad Requests)
+  const structuredResponseSchema = {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      level: { type: "string" },
+      modules: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            dayId: { type: "integer" },
+            title: { type: "string" },
+            status: { type: "string" },
+            duration: { type: "string" },
+            objective: { type: "string" },
+            topics: { type: "array", items: { type: "string" } },
+            curatedSearchQuery: { type: "string" },
+            shortNotes: { type: "string" },
+            schedules: {
+              type: "object",
+              properties: {
+                quiz: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    quizTopic: { type: "string" },
+                    duration: { type: "string" }
+                  },
+                  required: ["name", "quizTopic", "duration"]
+                },
+                assignment: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    assignmentObjective: { type: "string" },
+                    complexity: { type: "string" }
+                  },
+                  required: ["name", "assignmentObjective", "complexity"]
+                }
+              },
+              required: ["quiz", "assignment"]
+            }
+          },
+          required: ["dayId", "title", "status", "duration", "objective", "topics", "curatedSearchQuery", "shortNotes", "schedules"]
+        }
+      }
+    },
+    required: ["title", "level", "modules"]
+  };
+
+  const userQueryPrompt = `
+    Create a highly personalized 4-day learning roadmap on the topic: "${prompt}" matching level: "${level || 'Beginner'}".
+    For each of the 4 days, generate detailed subtopics, specific high-quality Youtube search queries to find tutorials, short notes (1-2 sentences), and a scheduled quiz/assignment name.
+    Do not use any markdown formatting or code blocks. Output only a clean, stringified JSON object following this exact structure:
+    {
+      "title": "String",
+      "level": "String",
+      "modules": [
+        {
+          "dayId": 1,
+          "title": "String Day Topic",
+          "status": "Not Started",
+          "duration": "2 Hours",
+          "objective": "Detailed Day Learning Goal",
+          "topics": ["Topic A", "Topic B"],
+          "curatedSearchQuery": "YouTube Search Term String",
+          "shortNotes": "AI Generated Revision Notes text block",
+          "schedules": {
+            "quiz": { "name": "Topic Quiz", "quizTopic": "Quiz Topic", "duration": "10 min" },
+            "assignment": { "name": "Topic Assignment", "assignmentObjective": "Goal", "complexity": "Medium" }
+          }
+        }
+      ]
+    }
   `;
 
   try {
-    console.log(`[AI_ENGINE] Initializing generation query chain for user node: ${activeUserId}...`);
+    console.log(`🤖 [AI_COMPILER]: Running Gemini API content pipeline for: ${prompt}`);
+    const rawAiText = await callGeminiAPI(userQueryPrompt, systemInstructions, structuredResponseSchema);
     
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: strategicPromptSystemDesign,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            title: { type: 'STRING' },
-            level: { type: 'STRING' },
-            modules: {
-              type: 'ARRAY',
-              items: {
-                type: 'OBJECT',
-                properties: {
-                  dayId: { type: 'INTEGER' },
-                  title: { type: 'STRING' },
-                  status: { type: 'STRING' },
-                  duration: { type: 'STRING' },
-                  objective: { type: 'STRING' },
-                  topics: { type: 'ARRAY', items: { type: 'STRING' } },
-                  schedules: {
-                    type: 'OBJECT',
-                    properties: {
-                      quiz: {
-                        type: 'OBJECT',
-                        properties: { name: { type: 'STRING' }, quizTopic: { type: 'STRING' }, duration: { type: 'STRING' } },
-                        required: ['name', 'quizTopic', 'duration']
-                      },
-                      assignment: {
-                        type: 'OBJECT',
-                        properties: { name: { type: 'STRING' }, assignmentObjective: { type: 'STRING' }, complexity: { type: 'STRING' } },
-                        required: ['name', 'assignmentObjective', 'complexity']
-                      }
-                    },
-                    required: ['quiz', 'assignment']
-                  }
-                },
-                required: ['dayId', 'title', 'status', 'duration', 'objective', 'topics', 'schedules']
-              }
-            }
-          },
-          required: ['title', 'level', 'modules']
-        }
-      }
-    });
-
-    console.log("[AI_ENGINE_RAW_TEXT_STREAM]: Data packages successfully fetched.");
-
-    let jsonRawString = response.text.trim();
-    if (jsonRawString.startsWith('```')) {
-      jsonRawString = jsonRawString.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    let jsonFormattedStr = rawAiText.trim();
+    if (jsonFormattedStr.startsWith('```')) {
+      jsonFormattedStr = jsonFormattedStr.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
     }
 
-    const compiledResponseData = JSON.parse(jsonRawString);
-    
-    // Links course document dynamically to current logged-in user id
-    const dynamicCourseDocument = new Course({
-      userId: activeUserId,
-      title: compiledResponseData.title,
-      level: compiledResponseData.level,
-      modules: compiledResponseData.modules
+    const coursePayloadParsed = JSON.parse(jsonFormattedStr);
+
+    const committedCourse = new Course({
+      userId: activeUser,
+      title: coursePayloadParsed.title,
+      level: coursePayloadParsed.level,
+      modules: coursePayloadParsed.modules
     });
 
-    await dynamicCourseDocument.save();
-    console.log(`[DB_SUCCESS] Dynamic roadmap successfully committed to MongoDB.`);
+    await committedCourse.save();
+    console.log(`💾 [MONGO_STRETCH]: Dynamic course tree saved! Record ID: ${committedCourse._id}`);
+
+    // Auto schedule Day 1 Assessment details
+    const randomHexId = crypto.randomBytes(4).toString('hex');
+    const dayOneTopicsList = coursePayloadParsed.modules[0]?.topics || [prompt];
+
+    const quizScheduleRecord = new ScheduledQuiz({
+      quizId: randomHexId,
+      userId: activeUser,
+      title: `${coursePayloadParsed.title} Day 1 Assessment`,
+      description: `Evaluation track to verify fundamentals regarding ${coursePayloadParsed.title}.`,
+      syllabusTopics: dayOneTopicsList,
+      difficulty: level || 'Beginner',
+      totalQuestions: 5,
+      timeLimit: 10
+    });
     
-    return res.status(201).json({ success: true, data: dynamicCourseDocument });
+    await quizScheduleRecord.save();
+    console.log(`🎯 [QUIZ_SCHEDULED]: Automated evaluation setup with Id: ${randomHexId}`);
+
+    // Return using the simple 'data' key for direct frontend consumption
+    return res.status(201).json({
+      success: true,
+      message: 'AI Course roadmap generated and successfully saved.',
+      data: committedCourse,
+      scheduledQuizId: randomHexId
+    });
 
   } catch (error) {
-    console.error("❌ [AI_GENERATION_FAULT] Detailed Error Matrix Stack:", error);
-    return res.status(500).json({ 
-      success: false, 
-      error: "Internal generation pipeline fault failed to compile roadmap.", 
-      details: error.message 
-    });
+    console.error('❌ [AI_GENERATION_FAILED]: Detailed exception stack:', error);
+    res.status(500).json({ success: false, error: 'Database pipeline or AI compiler exception occurred.', details: error.message });
   }
 });
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-// 4. QUIZ MODULE ENDPOINTS
-const callGeminiForQuestions = async ({ title, syllabusTopics, difficulty, totalQuestions, quizType }) => {
-  const topicsList = syllabusTopics && syllabusTopics.length > 0 ? syllabusTopics.join(', ') : 'general programming topics';
-  const systemPrompt = `You are an expert quiz generator. Generate exactly ${totalQuestions} ${quizType} questions for a learner. Return only valid JSON in the format { "questions": [ ... ] } with no extra text.`;
-  const userPrompt = `Create ${totalQuestions} ${quizType} questions for the following quiz configuration:\n- Title: ${title}\n- Topics: ${topicsList}\n- Difficulty: ${difficulty}\n- Output format: JSON with properties question, options, correctAnswer, explanation. Each option should be unique. Use concise, clear phrasing.`;
-
+// 2. GET ROADMAP HISTORY RECORDS FOR COMPILING PROFILE
+app.get('/api/courses', authorizeSessionToken, async (req, res) => {
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 1200
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-
-    const jsonMatch = content.match(/\{[\s\S]*\}$/);
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);
-
-    if (!parsed || !Array.isArray(parsed.questions)) {
-      throw new Error('Gemini returned invalid question JSON structure.');
-    }
-
-    parsed.questions.forEach((question, index) => {
-      if (!question.question || !Array.isArray(question.options) || question.options.length < 2 || !question.correctAnswer || !question.explanation) {
-        throw new Error(`Gemini question ${index + 1} is missing required fields.`);
-      }
-    });
-
-    return parsed.questions;
+    const coursesHistory = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: coursesHistory });
   } catch (error) {
-    console.error('Gemini request failed:', error);
-    throw error;
+    res.status(500).json({ success: false, message: 'Course records logs indexing crashed.' });
   }
-};
+});
 
+
+// --- SECTION 3: DYNAMIC AI ASSESSMENT ENGINES ---
+
+// 1. START THE ASSESSMENT MODULE & GENERATE ACTIVE QUESTIONS VIA GEMINI
 app.post('/api/quizzes/:quizId/start', async (req, res) => {
   try {
     const quizId = req.params.quizId;
-    const userId = req.body.userId || null;
 
-    const scheduledQuiz = await ScheduledQuiz.findOne({ quizId });
-    if (!scheduledQuiz) {
-      return res.status(404).json({ success: false, message: 'Scheduled quiz not found.' });
+    const quizMeta = await ScheduledQuiz.findOne({ quizId });
+    if (!quizMeta) {
+      return res.status(404).json({ success: false, message: 'No scheduled assessments matching this ID found.' });
     }
 
-    const questions = await callGeminiForQuestions({
-      title: scheduledQuiz.title,
-      syllabusTopics: scheduledQuiz.syllabusTopics,
-      difficulty: scheduledQuiz.difficulty,
-      totalQuestions: scheduledQuiz.totalQuestions,
-      quizType: scheduledQuiz.quizType
-    });
+    const topicsStringArray = quizMeta.syllabusTopics && quizMeta.syllabusTopics.length > 0 ? quizMeta.syllabusTopics.join(', ') : 'core domain concepts';
+    const systemPromptInstructions = "You are a professional educational assessor. Generate unique questions in structured JSON configuration format. Do not use markdown backticks.";
+    
+    // Corrected to standard lowercase OpenAPI types
+    const structuredQuizSchema = {
+      type: "object",
+      properties: {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              question: { type: "string" },
+              options: { type: "array", items: { type: "string" } },
+              correctAnswer: { type: "string" },
+              explanation: { type: "string" }
+            },
+            required: ["question", "options", "correctAnswer", "explanation"]
+          }
+        }
+      },
+      required: ["questions"]
+    };
+
+    const userQuizRequest = `
+      Create exactly ${quizMeta.totalQuestions} different MCQ questions for:
+      - Assessment Domain: "${quizMeta.title}"
+      - Detailed syllabus requirements: "${topicsStringArray}"
+      - Difficulty parameter index: "${quizMeta.difficulty}"
+    `;
+
+    console.log(`🎲 [QUIZ_API_CALL]: Deploying model gemini-2.5-flash-preview-09-2025 to parse questions...`);
+    const resultRawText = await callGeminiAPI(userQuizRequest, systemPromptInstructions, structuredQuizSchema);
+
+    const jsonMatch = resultRawText.match(/\{[\s\S]*\}/);
+    const parsedQuestionPayload = JSON.parse(jsonMatch ? jsonMatch[0] : resultRawText);
 
     res.status(200).json({
       success: true,
       quizId,
-      title: scheduledQuiz.title,
-      description: scheduledQuiz.description,
-      totalQuestions: scheduledQuiz.totalQuestions,
-      timeLimit: scheduledQuiz.timeLimit,
-      status: scheduledQuiz.status,
-      generatedQuestions: questions
+      title: quizMeta.title,
+      description: quizMeta.description,
+      totalQuestions: quizMeta.totalQuestions,
+      timeLimit: quizMeta.timeLimit,
+      status: quizMeta.status,
+      generatedQuestions: parsedQuestionPayload.questions
     });
+
   } catch (error) {
-    console.error('/api/quizzes/:quizId/start error:', error);
-    res.status(500).json({ success: false, message: 'Unable to start quiz at this time.' });
+    console.error('❌ [QUIZ_START_EXCEPTIONS]:', error);
+    res.status(500).json({ success: false, message: 'AI Engine failed to formulate question sets.' });
   }
 });
 
+// 2. SUBMIT USER QUIZ SCORE & EXPLAIN EVALUATION
 app.post('/api/quizzes/submit', async (req, res) => {
   try {
     const { quizId, userId, generatedQuestions, userAnswers } = req.body;
 
     if (!quizId || !userId || !Array.isArray(generatedQuestions) || typeof userAnswers !== 'object') {
-      return res.status(400).json({ success: false, message: 'Required submission data missing or malformed.' });
+      return res.status(400).json({ success: false, message: 'Symmetric validation attributes missing.' });
     }
 
-    let score = 0;
-    const breakdown = generatedQuestions.map((question, index) => {
-      const selected = userAnswers[index] || null;
-      const isCorrect = selected === question.correctAnswer;
-      if (isCorrect) score += 1;
+    let calculatedScore = 0;
+    const testBreakdown = generatedQuestions.map((question, index) => {
+      const selectedOption = userAnswers[index] || null;
+      const isCorrect = selectedOption === question.correctAnswer;
+      if (isCorrect) calculatedScore += 1;
+
       return {
         index,
         question: question.question,
         options: question.options,
         correctAnswer: question.correctAnswer,
-        selectedAnswer: selected,
+        selectedAnswer: selectedOption,
         isCorrect,
         explanation: question.explanation
       };
     });
 
-    const percentage = Math.round((score / generatedQuestions.length) * 100);
-    const attemptId = crypto.randomUUID();
+    const completionPercentage = Math.round((calculatedScore / generatedQuestions.length) * 100);
+    const uniqueAttemptUUID = crypto.randomBytes(6).toString('hex');
 
-    const quizAttempt = new QuizAttempt({
-      attemptId,
+    const testAttemptDoc = new QuizAttempt({
+      attemptId: uniqueAttemptUUID,
       quizId,
       userId,
       generatedQuestions,
       userAnswers,
-      score,
-      percentage,
-      completedAt: new Date()
+      score: calculatedScore,
+      percentage: completionPercentage
     });
 
-    await quizAttempt.save();
+    await testAttemptDoc.save();
 
-    const quizUpdate = await ScheduledQuiz.findOneAndUpdate(
-      { quizId, userId },
+    await ScheduledQuiz.findOneAndUpdate(
+      { quizId },
       { status: 'Completed' },
       { new: true }
     );
 
     res.status(200).json({
       success: true,
-      attemptId,
-      score,
-      percentage,
-      correctCount: score,
-      wrongCount: generatedQuestions.length - score,
-      breakdown
+      attemptId: uniqueAttemptUUID,
+      score: calculatedScore,
+      percentage: completionPercentage,
+      correctCount: calculatedScore,
+      wrongCount: generatedQuestions.length - calculatedScore,
+      breakdown: testBreakdown
     });
+
   } catch (error) {
-    console.error('/api/quizzes/submit error:', error);
-    res.status(500).json({ success: false, message: 'Submission failed. Please try again.' });
+    console.error('❌ [QUIZ_EVALUATION_FAULT]:', error);
+    res.status(500).json({ success: false, message: 'Server failed to process quiz assessment grading.' });
   }
 });
 
-// Port Handshake Listener
-=======
-// --- ENGINE INITIALIZATION ---
->>>>>>> b1d2629 (adding gemini ai into the project, manish module)
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 LuminaLearn Engine Online on telemetry port: ${PORT}`));
-=======
-/**
- * Route: GET /api/courses
- * Description: Fetches logs from MongoDB generated only by the active user.
- */
-app.get('/api/courses', authenticateSessionToken, async (req, res) => {
-  try {
-    console.log(`[DB_FETCH] Pulling course histories mapping for active user session token: ${req.user.userId}`);
-    const userSpecificCourseHistory = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: userSpecificCourseHistory });
-  } catch (error) {
-    console.error("❌ [DB_FETCH_FAULT] Failed to retrieve records:", error.message);
-    res.status(500).json({ success: false, message: "Failed to map historical compiled roadmap logs indices from server." });
-  }
-});
 
->>>>>>> 55c2d34 (new commit)
+// Express server listener configuration
+app.listen(PORT, () => {
+  console.log("-----------------------------------------------------------------");
+  console.log(`🚀 [SERVER ONLINE]: LuminaLearn Backend is actively serving on: http://localhost:${PORT}`);
+  console.log("-----------------------------------------------------------------");
+});

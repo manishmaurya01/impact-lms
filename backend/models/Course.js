@@ -1,36 +1,49 @@
 const mongoose = require('mongoose');
 
-const QuizSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  quizTopic: { type: String, required: true }, // For future on-the-fly dynamic rendering hooks
-  duration: { type: String, default: "15 Mins" }
-});
-
-const AssignmentSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  assignmentObjective: { type: String, required: true },
-  complexity: { type: String, default: "Medium" }
-});
-
-const ModuleDaySchema = new mongoose.Schema({
-  dayId: { type: Number, required: true },
-  title: { type: String, required: true },
-  status: { type: String, enum: ['unlocked', 'locked'], default: 'locked' },
-  duration: { type: String, required: true }, // e.g., "Day 01"
-  objective: { type: String, required: true },
+// Day-wise learning module mapping sub-schema with safe fallback defaults
+const ModuleSchema = new mongoose.Schema({
+  dayId: { type: Number, default: 1 },
+  title: { type: String, default: "Untitled Topic Module" },
+  status: { type: String, default: 'Not Started' },
+  duration: { type: String, default: "2 Hours" },
+  objective: { type: String, default: "Understand core concepts." },
   topics: [{ type: String }],
+  curatedSearchQuery: { type: String, default: "" }, 
+  shortNotes: { type: String, default: "" },         
   schedules: {
-    quiz: QuizSchema,
-    assignment: AssignmentSchema
+    quiz: {
+      name: { type: String, default: "Practice Assessment" },
+      quizTopic: { type: String, default: "Core Concepts Evaluation" },
+      duration: { type: String, default: "10 min" }
+    },
+    assignment: {
+      name: { type: String, default: "Symmetric Practice Assignment" },
+      assignmentObjective: { type: String, default: "Implement concepts learned today." },
+      complexity: { type: String, default: "Medium" }
+    }
   }
 });
 
-const CourseRoadmapSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Ties roadmap dynamically to its user node
-  title: { type: String, required: true },
-  level: { type: String, required: true, enum: ['Beginner', 'Intermediate', 'Advanced'] },
-  createdAt: { type: Date, default: Date.now },
-  modules: [ModuleDaySchema]
+// Base Course metadata layout
+const CourseSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  level: {
+    type: String,
+    required: true
+  },
+  modules: [ModuleSchema],
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-module.exports = mongoose.model('Course', CourseRoadmapSchema);
+module.exports = mongoose.model('Course', CourseSchema);

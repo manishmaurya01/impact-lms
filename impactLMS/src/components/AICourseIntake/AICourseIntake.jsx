@@ -48,7 +48,7 @@ function AICourseIntake({ onGenerationComplete }) {
       // 1. Fetch user authorization token stored during login node
       const activeSessionToken = localStorage.getItem('token'); 
       if (!activeSessionToken) {
-        throw new Error("User authorization token missing. Please re-login to establish session identifiers.");
+        throw new Error("Aapka login session token missing hai. Please ek baar log out karke dobara login karein.");
       }
 
       // 2. Trigger Express Pipeline Server Node directly
@@ -68,7 +68,9 @@ function AICourseIntake({ onGenerationComplete }) {
       const serverPayloadJson = await response.json();
 
       if (!response.ok || !serverPayloadJson.success) {
-        throw new Error(serverPayloadJson.error || "Backend pipeline returned an operational error exception.");
+        // AI check error ya session authorization messages ko seamlessly extract karo
+        const failureReason = serverPayloadJson.error || serverPayloadJson.message || "Backend pipeline returned an operational error exception.";
+        throw new Error(failureReason);
       }
 
       console.log("[FRONTEND_INTAKE] MongoDB Database commit verified successfully:", serverPayloadJson.data);
@@ -122,8 +124,11 @@ function AICourseIntake({ onGenerationComplete }) {
         {/* PROMPT ACTION CARD CONTAINER */}
         <form onSubmit={handleSubmit} className="prompt-matrix-form-card">
           {errorLogs && (
-            <div style={{ color: '#ef4444', background: 'rgba(239,68,68,0.05)', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '14px' }}>
+            <div style={{ color: '#ef4444', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', padding: '12px', borderRadius: '8px', fontSize: '13px', marginBottom: '14px' }}>
               <strong>Handshake Fault:</strong> {errorLogs}
+              <div style={{ fontSize: '11px', marginTop: '4px', color: '#94a3b8' }}>
+                💡 Tip: Agar token error hai, toh ek baar application se log out karke login karein!
+              </div>
             </div>
           )}
 

@@ -1,33 +1,28 @@
 const mongoose = require('mongoose');
 
-// Symmetrical Onboarding Data Schema corresponding with frontend states
+// User details ko database me mapping karne ka schema
 const UserSchema = new mongoose.Schema({
   fullName: {
     type: String,
-    required: [true, 'User full name is mandatory'],
-    trim: true
+    required: true
   },
   email: {
     type: String,
-    required: [true, 'Valid email profile is mandatory'],
-    unique: true,
-    lowercase: true,
-    trim: true
+    required: true,
+    unique: true
   },
   password: {
     type: String,
-    // FIXED: Google Auth users ke liye password mandatory nahi hoga
+    // Agar Google se login hai to password validation skip hoga
     required: function() { return !this.googleId; }
   },
   googleId: {
     type: String,
-    unique: true,
-    sparse: true // Allows null/crypto profiles without collision leaks
+    default: null
   },
-  
-  // Adaptive LMS metadata configuration options
   role: {
     type: String,
+    enum: ['Student', 'Mentor/Teacher', 'Admin'],
     default: 'Student'
   },
   domain: {
