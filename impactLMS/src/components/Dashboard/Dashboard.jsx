@@ -1,37 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Hook for redirection after logout
+import { useNavigate } from 'react-router-dom';
+import { 
+  LayoutDashboard, Wand2, BookOpen, LogOut, 
+  Play, History, Database, ArrowLeft, Loader2, Sparkles,
+  Code, LayoutGrid, CheckCircle2, Unlock, Lock
+} from 'lucide-react';
 import './Dashboard.css';
 import AICourseIntake from '../AICourseIntake/AICourseIntake';
-import CourseRoadmapDisplay from '../AICourseIntake/CourseRoadmapDisplay';
+import SecureTerminalWorkspace from './SecureTerminalWorkspace'; // Ensure this is in the same folder
 
 function Dashboard() {
-  const navigate = useNavigate(); // Initialized for routing control
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [courseData, setCourseData] = useState(null);
   const [innerTrackView, setInnerTrackView] = useState('portfolio'); 
-  const [mongoSavedHistory, setMongoSavedHistory] = useState([]); 
+  const [mongoSavedHistory, setMongoSavedHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeChallenge, setActiveChallenge] = useState(null); // Added for Terminal
 
-  // 🚀 CRITICAL NEW FEATURE: LOGOUT HANDSHAKE HANDLER
+  // 🚀 LOGOUT HANDSHAKE HANDLER
   const handleLogout = () => {
     console.log("[AUTH_SESSION] Terminating workspace session tokens...");
-    
-    // 1. Clear all authentication variables from browser storage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
-    console.log("[AUTH_SESSION] Storage wiped. Redirecting to login terminal.");
-    
-    // 2. Bounce user back to login page instantly
     navigate('/login');
   };
 
-  // Fetch user-specific courses timeline logs directly from MongoDB
+  // 📥 FETCH HISTORICAL COURSES FROM MONGODB
   const fetchHistoricalCoursesFromDB = async () => {
+    setIsLoading(true);
     try {
       const currentToken = localStorage.getItem('token');
-      if (!currentToken) return;
+      if (!currentToken) {
+        setIsLoading(false);
+        return;
+      }
 
-      console.log("[DASHBOARD] Fetching verified operational courses logs from MongoDB...");
       const response = await fetch('http://localhost:5000/api/courses', {
         method: 'GET',
         headers: {
@@ -43,7 +47,9 @@ function Dashboard() {
         setMongoSavedHistory(resultJson.data);
       }
     } catch (error) {
-      console.error("[DASHBOARD_DB_FETCH_ERROR] Failed to query historical repository indices:", error);
+      console.error("[DASHBOARD_DB_FETCH_ERROR] Failed to query historical repository:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -57,147 +63,258 @@ function Dashboard() {
     setActiveTab('courses'); 
   };
 
+  // Logics for unlocking sequential modules
+  const getProgressTimelineModules = (activeCourse) => {
+    if (!activeCourse || !activeCourse.modules) return [];
+    const savedProgress = JSON.parse(localStorage.getItem(`progress_${activeCourse._id}`)) || [];
+    
+    return activeCourse.modules.map((mod, index) => {
+      const isCompleted = savedProgress.includes(mod.moduleId || index);
+      const isUnlocked = index === 0 || savedProgress.includes(activeCourse.modules[index - 1].moduleId || index - 1);
+      
+      return {
+        id: mod.moduleId || index,
+        courseId: activeCourse._id,
+        title: mod.moduleName || `Evaluation Module 0${index + 1}`,
+        type: activeCourse.contentType === "Non-Technical" ? 'Theory' : 'Coding',
+        status: isCompleted ? 'completed' : isUnlocked ? 'unlocked' : 'locked',
+        desc: mod.shortSummary || mod.objective || 'Complete this execution block to proceed.',
+        codingQuestion: mod.assignment?.assignmentObjective || "Detailed execution trace required.",
+        starterCode: "// LuminaLearn Active Terminal\nfunction executeTask() {\n  return true;\n}",
+        theoryQuestion: mod.visualGuidelines || "Provide deep theoretical structure."
+      };
+    });
+  };
+
+  // If a challenge is clicked, render the full-screen terminal workspace
+  if (activeChallenge) {
+    return (
+      <SecureTerminalWorkspace 
+        targetParams={activeChallenge} 
+        onReturn={() => {
+          setActiveChallenge(null);
+          // Force refresh to update the lock/unlock states visually
+          setCourseData({...courseData}); 
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="lms-premium-viewport">
       
-      {/* --- SIDEBAR SUBSYSTEM MATRIX --- */}
-      <aside className="lms-sidebar-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <div className="sidebar-brand-block" onClick={() => setActiveTab('dashboard')} style={{ cursor: 'pointer' }}>
-          <div className="brand-logo-spark"><i className="fa-solid fa-star-of-life"></i></div>
-          <div className="brand-title-text"><h2>LuminaLearn</h2><span>Studio</span></div>
+      {/* --- SIDEBAR MATRIX --- */}
+      <aside className="lms-sidebar-container">
+        <div className="sidebar-brand-block" onClick={() => setActiveTab('dashboard')}>
+          <div className="brand-logo-spark"><Sparkles size={24} /></div>
+          <div className="brand-title-text">
+            <h2>LuminaLearn</h2>
+            <span>Studio</span>
+          </div>
         </div>
 
         <div className="sidebar-action-container">
-          <button className="sidebar-generate-course-btn" onClick={() => setActiveTab('ai-generate')}>
-            <i className="fa-solid fa-wand-magic-sparkles"></i><span>Generate Course</span>
+          <button className="sidebar-generate-btn" onClick={() => setActiveTab('ai-generate')}>
+            <Wand2 size={16} /> <span>Generate Course</span>
           </button>
         </div>
 
-        <nav className="sidebar-navigation-mesh" style={{ flexGrow: 1 }}>
-          <button className={`nav-link-item ${activeTab === 'dashboard' ? 'is-active' : ''}`} onClick={() => setActiveTab('dashboard')}>
-            <i className="fa-solid fa-house"></i> Dashboard
+        <nav className="sidebar-navigation-mesh">
+          <button 
+            className={`nav-link-item ${activeTab === 'dashboard' ? 'is-active' : ''}`} 
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <LayoutDashboard size={18} /> Dashboard
           </button>
-          <button className={`nav-link-item ${activeTab === 'courses' ? 'is-active' : ''}`} onClick={() => setActiveTab('courses')}>
-            <i className="fa-solid fa-book"></i> Courses & History ({mongoSavedHistory.length})
+          <button 
+            className={`nav-link-item ${activeTab === 'courses' ? 'is-active' : ''}`} 
+            onClick={() => { setActiveTab('courses'); setInnerTrackView('portfolio'); }}
+          >
+            <BookOpen size={18} /> Courses & History
+            {mongoSavedHistory.length > 0 && <span className="nav-count-badge">{mongoSavedHistory.length}</span>}
           </button>
         </nav>
 
-        {/* --- PROFILE PROFILE SECTION WITH INTEGRATED LOGOUT --- */}
-        <div className="sidebar-footer-profile-node" style={{ borderTop: '1px solid #1e293b', paddingTop: '15px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+        {/* --- PROFILE & LOGOUT SECTION --- */}
+        <div className="sidebar-footer-profile-node">
+          <div className="profile-info-row">
             <div className="user-avatar-glow-wrapper">
               <div className="user-avatar-initials">MM</div>
             </div>
-            <div className="user-meta-credentials" style={{ flexGrow: 1, marginLeft: '10px' }}>
-              <h4 style={{ color: '#fff', margin: 0, fontSize: '14px' }}>Manish Maurya</h4>
+            <div className="user-meta-credentials">
+              <h4>Manish Maurya</h4>
+              <span className="user-role">Verified Student</span>
             </div>
           </div>
           
-          {/* 🔓 DYNAMIC ACTION LOGOUT BUTTON */}
-          <button 
-            onClick={handleLogout}
-            style={{
-              width: '100%',
-              padding: '10px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              borderRadius: '8px',
-              color: '#ef4444',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'; }}
-            onMouseLeave={(e) => { e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; }}
-          >
-            <i className="fa-solid fa-right-from-bracket"></i>
-            <span>Terminate Session (Logout)</span>
+          <button onClick={handleLogout} className="btn-logout-sidebar">
+            <LogOut size={16} /> Terminate Session
           </button>
         </div>
       </aside>
 
-      {/* --- MAIN MAIN FRAME HUB STAGE --- */}
+      {/* --- MAIN WORKSPACE STAGE --- */}
       <main className="lms-workspace-stage">
-        <header className="workspace-terminal-header">
+        <header className="workspace-terminal-header animate-slideDown">
           <div className="header-headline-title-block">
-            <h1>{activeTab === 'courses' ? 'Course Hub Portfolio' : activeTab === 'dashboard' ? 'Workspace Terminal' : 'AI Core Generation Engine'}</h1>
+            <h1>
+              {activeTab === 'courses' ? 'Course Hub Portfolio' : 
+               activeTab === 'dashboard' ? 'Workspace Terminal' : 
+               'AI Core Generation Engine'}
+            </h1>
           </div>
         </header>
 
+        {/* TAB: DASHBOARD */}
         {activeTab === 'dashboard' && (
-          <div className="dashboard-layout-wrapper">
-            <h2 style={{ color: '#fff', fontSize: '18px' }}>Welcome to LuminaLearn Dashboard Node</h2>
-            <p style={{ color: '#64748b' }}>Select 'Generate Course' from sidebar to begin tracking skills dynamically.</p>
+          <div className="dashboard-layout-wrapper animate-fadeIn">
+            <div className="welcome-hero-card">
+              <div className="ambient-glow-sphere"></div>
+              <h2>Welcome to LuminaLearn Matrix</h2>
+              <p>Your central cognitive hub. Select <strong>'Generate Course'</strong> from the sidebar to dynamically compile a new syllabus using Atlas nodes.</p>
+            </div>
           </div>
         )}
 
+        {/* TAB: AI GENERATOR */}
         {activeTab === 'ai-generate' && (
-          <div style={{ display: 'flex', width: '100%', justifyContent: 'center' }}>
+          <div className="generator-wrapper animate-fadeIn">
             <AICourseIntake onGenerationComplete={handleGenerationComplete} />
           </div>
         )}
 
+        {/* TAB: COURSES & HISTORY */}
         {activeTab === 'courses' && (
           <div className="roadmap-wrapper-viewport animate-fadeIn">
+            
+            {/* VIEW: PORTFOLIO LIST */}
             {innerTrackView === 'portfolio' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.05) 0%, rgba(15, 23, 42, 0.4) 100%)', border: '1px solid #1e293b', padding: '24px', borderRadius: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <h3 style={{ margin: 0, color: '#fff', fontSize: '15px' }}><i className="fa-solid fa-circle-nodes text-cyan mr-2"></i> Current Operational Target Node</h3>
-                    <span className="roadmap-duration-pill-badge" style={{ color: '#06B6D4' }}>Database Connected</span>
+              <div className="portfolio-stack-layout">
+                
+                {/* Active Target Hero Card */}
+                <div className="target-node-hero-card">
+                  <div className="hero-status-row">
+                    <h3><Database size={16} /> Current Operational Target Node</h3>
+                    <span className="status-pill">Database Connected</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                    <h2 style={{ color: '#ffffff', fontSize: '22px', margin: '0', fontWeight: '700' }}>
-                      {courseData ? courseData.title : (mongoSavedHistory[0]?.title || 'No active tracking pathways found in MongoDB.')}
+                  
+                  <div className="hero-action-row">
+                    <h2>
+                      {courseData ? courseData.title : (mongoSavedHistory[0]?.title || 'No active tracking pathways found.')}
                     </h2>
                     <button 
-                      className="prompt-matrix-submit-btn"
-                      style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #06B6D4 0%, #0284c7 100%)', border: 'none', borderRadius: '8px', color: '#020617', fontWeight: 'bold', cursor: 'pointer' }}
+                      className="btn-resume-track"
+                      disabled={mongoSavedHistory.length === 0}
                       onClick={() => {
                         if (!courseData && mongoSavedHistory.length > 0) setCourseData(mongoSavedHistory[0]);
                         setInnerTrackView('roadmap-active');
                       }}
                     >
-                      <i className="fa-solid fa-play mr-2"></i> Resume Operational Track
+                      <Play size={16} /> Resume Operational Track
                     </button>
                   </div>
                 </div>
 
-                <div className="central-workspace-card past-history-table-console">
-                  <h3 style={{ color: '#fff', fontSize: '15px', marginBottom: '16px' }}><i className="fa-solid fa-clock-rotate-left text-purple mr-2"></i> Real-time Repository Sync Logs from MongoDB</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {mongoSavedHistory.map((courseRow) => (
-                      <div 
-                        key={courseRow._id} 
-                        style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 120px', padding: '16px 20px', backgroundColor: 'rgba(7,11,23,0.5)', border: '1px solid #1e293b', borderRadius: '12px', alignItems: 'center', cursor: 'pointer' }}
-                        onClick={() => {
-                          setCourseData(courseRow);
-                          setInnerTrackView('roadmap-active');
-                        }}
-                      >
-                        <div style={{ fontWeight: '600', color: '#f8fafc', fontSize: '14px' }}>{courseRow.title}</div>
-                        <div style={{ color: '#64748b', fontSize: '13px' }}>{courseRow.level}</div>
-                        <div style={{ textAlign: 'right', color: '#06B6D4', fontSize: '12px', fontFamily: 'monospace' }}>[CLICK_TO_LOAD]</div>
-                      </div>
-                    ))}
-                  </div>
+                {/* MongoDB History Registry */}
+                <div className="history-registry-container">
+                  <h3 className="registry-title"><History size={16} /> Real-time Repository Sync Logs</h3>
+                  
+                  {isLoading ? (
+                    <div className="loading-state-panel">
+                      <Loader2 className="spinner-icon" size={32} />
+                      <p>Querying Atlas Clusters...</p>
+                    </div>
+                  ) : mongoSavedHistory.length === 0 ? (
+                    <div className="empty-state-panel">
+                      <p>No persistent structures recorded inside your cloud workspace. Generate a path first!</p>
+                    </div>
+                  ) : (
+                    <div className="course-history-grid">
+                      {mongoSavedHistory.map((courseRow) => (
+                        <div 
+                          key={courseRow._id} 
+                          className="history-course-row-card"
+                          onClick={() => {
+                            setCourseData(courseRow);
+                            setInnerTrackView('roadmap-active');
+                          }}
+                        >
+                          <div className="row-meta-info">
+                            <h4>{courseRow.title}</h4>
+                            <span>Depth Tier: {courseRow.level} | Format: {courseRow.contentType}</span>
+                          </div>
+                          <div className="row-action-info">
+                            <span className="load-matrix-txt">[CLICK_TO_LOAD]</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
               </div>
             )}
 
-            {innerTrackView === 'roadmap-active' && (
-              <div className="roadmap-viewport-container">
-                <button onClick={() => setInnerTrackView('portfolio')} className="roadmap-reset-terminal-pipeline-btn">
-                  &larr; Return to Courses Index Repositories
+            {/* VIEW: ACTIVE ROADMAP TIMELINE */}
+            {innerTrackView === 'roadmap-active' && courseData && (
+              <div className="roadmap-active-container animate-slideUp">
+                <button onClick={() => setInnerTrackView('portfolio')} className="btn-return-portfolio">
+                  <ArrowLeft size={16} /> Return to Repositories
                 </button>
-                <CourseRoadmapDisplay courseData={courseData} />
+                
+                <div className="timeline-header-card">
+                  <span className="timeline-pre-lbl">Active Execution Pipeline</span>
+                  <h2 className="timeline-main-title">{courseData.title}</h2>
+                  <span className="timeline-sub-metrics">Class: {courseData.contentType || 'Technical'} Track | Depth: {courseData.level}</span>
+                </div>
+
+                <div className="module-grid">
+                  {getProgressTimelineModules(courseData).map((assignment) => {
+                    const isLocked = assignment.status === 'locked';
+                    const isCompleted = assignment.status === 'completed';
+                    const isUnlocked = assignment.status === 'unlocked';
+
+                    return (
+                      <div 
+                        key={assignment.id} 
+                        className={`glass-card assignment-card ${assignment.status}`}
+                        onClick={() => {
+                          if (isLocked) {
+                            alert("🔒 SECURITY MATRIX: This module is locked. Complete the previous assignments first.");
+                          } else if (!isCompleted) {
+                            setActiveChallenge(assignment);
+                          }
+                        }}
+                      >
+                        {isUnlocked && <div className="card-hover-line line-cyan"></div>}
+                        
+                        <div className="card-header">
+                          <div className={`icon-box ${isUnlocked ? 'box-cyan' : isCompleted ? 'box-emerald' : 'box-slate'}`}>
+                            {assignment.type === 'Coding' ? <Code size={20}/> : <LayoutGrid size={20}/>}
+                          </div>
+                          <span className={`badge ${isUnlocked ? 'badge-cyan' : isCompleted ? 'badge-emerald' : 'badge-slate'}`}>
+                            {isCompleted ? <CheckCircle2 size={10} /> : isUnlocked ? <Unlock size={10} /> : <Lock size={10} />}
+                            {isCompleted ? 'COMPLETED' : isUnlocked ? 'ACTIVE' : 'LOCKED'}
+                          </span>
+                        </div>
+
+                        <h3 className="card-title">{assignment.title}</h3>
+                        <p className="card-desc">{assignment.desc}</p>
+
+                        <div className="card-footer">
+                          <span className="task-type">TYPE: {assignment.type}</span>
+                          {isUnlocked && <button className="btn-initialize btn-cyan">Enter Terminal Workspace &rarr;</button>}
+                          {isLocked && <button className="btn-locked" disabled>Requires Previous Node</button>}
+                          {isCompleted && <button className="btn-completed" disabled>Session Archived</button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
               </div>
             )}
+
           </div>
         )}
       </main>
