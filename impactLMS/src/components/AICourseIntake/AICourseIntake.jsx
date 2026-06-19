@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AICourseIntake.css';
+import AICourseLearningWorkspace from './AICourseLearningWorkspace'; // Workspace import kiya
 
 function AICourseIntake() {
   const [inputPrompt, setInputPrompt] = useState('');
@@ -10,8 +11,11 @@ function AICourseIntake() {
   const [savedCoursesList, setSavedCoursesList] = useState([]);
   const [activeViewportCourse, setActiveViewportCourse] = useState(null);
   const [currentActiveDashboardTab, setCurrentActiveDashboardTab] = useState('generate'); 
+  
+  // 🚀 ACTIVE WORKSPACE TOGGLE STATE
+  const [isWorkspaceActive, setIsWorkspaceActive] = useState(false);
 
-  // 🚀 DYNAMIC IP RESOLVER FOR MULTI-COMPUTER LOCAL NETWORKS
+  // Dynamic IP resolver helper function
   const getApiUrl = (endpoint) => {
     const activeHost = window.location.hostname;
     return `http://${activeHost}:5000${endpoint}`;
@@ -48,7 +52,7 @@ function AICourseIntake() {
 
     try {
       const activeSessionToken = localStorage.getItem('token');
-      if (!activeSessionToken) throw new Error("Authorization missing. Re-login to setup session identifier context tokens.");
+      if (!activeSessionToken) throw new Error("Authorization missing. Re-login to setup session context tokens.");
 
       const response = await fetch(getApiUrl('/api/courses/generate'), {
         method: 'POST',
@@ -60,7 +64,7 @@ function AICourseIntake() {
       });
 
       const serverPayload = await response.json();
-      if (!response.ok || !serverPayload.success) throw new Error(serverPayload.error || "Generation error exceptions loop trace.");
+      if (!response.ok || !serverPayload.success) throw new Error(serverPayload.error || "Generation error loop trace.");
 
       setActiveViewportCourse(serverPayload.data);
       fetchSavedCoursesFromDatabase(); 
@@ -73,7 +77,7 @@ function AICourseIntake() {
 
   const handleCourseDeletionNode = async (courseId, e) => {
     e.stopPropagation(); 
-    if (!window.confirm("Are you sure you want to delete this roadmap node from memory?")) return;
+    if (!window.confirm("Are you sure you want to delete this roadmap node from database?")) return;
 
     try {
       const activeSessionToken = localStorage.getItem('token');
@@ -87,9 +91,22 @@ function AICourseIntake() {
         fetchSavedCoursesFromDatabase();
       }
     } catch (err) {
-      alert("Failed to clear course data element payload from database collection server.");
+      alert("Failed to clear course data element payload from database server.");
     }
   };
+
+  // 🚀 IF WORKSPACE IS TOGGLED ACTIVE: RENDER LEARNING TERMINAL directly
+  if (isWorkspaceActive && activeViewportCourse) {
+    return (
+      <AICourseLearningWorkspace 
+        courseData={activeViewportCourse} 
+        onBack={() => {
+          setIsWorkspaceActive(false);
+          setCurrentActiveDashboardTab('manage');
+        }} 
+      />
+    );
+  }
 
   return (
     <div className="centralized-prompt-matrix-viewport">
@@ -104,14 +121,14 @@ function AICourseIntake() {
           ✨ Generate Course Path
         </button>
         <button 
-          onClick={() => setCurrentActiveDashboardTab('manage')} 
+          onClick={() => { setCurrentActiveDashboardTab('manage'); setActiveViewportCourse(null); }} 
           className={`pill-selector-item ${currentActiveDashboardTab === 'manage' ? 'is-active' : ''}`}
         >
           📂 Manage Courses ({savedCoursesList.length})
         </button>
       </div>
 
-      {/* INPUT PROMPT VIEWPORT */}
+      {/* VIEWPORT 1: GENERATE COURSE FORM */}
       {currentActiveDashboardTab === 'generate' && !activeViewportCourse && (
         <div className="roadmap-master-scaffold-container max-w-xl">
           <form onSubmit={handleGenerateSubmit} className="interactive-glass-card">
@@ -128,7 +145,7 @@ function AICourseIntake() {
               <textarea
                 value={inputPrompt}
                 onChange={(e) => setInputPrompt(e.target.value)}
-                placeholder="Example: Full Java Stack development OR Professional Football Defense tactics and postures..."
+                placeholder="Example: Data Structures & Algorithms from Scratch or Cricket bowling postures..."
                 required
                 disabled={isGenerating}
               />
@@ -148,14 +165,14 @@ function AICourseIntake() {
                 ))}
               </div>
               <button type="submit" className="prompt-matrix-submit-btn" disabled={isGenerating}>
-                {isGenerating ? 'Analyzing Domain...' : 'Generate and Commit to DB'}
+                {isGenerating ? 'Analyzing Domain...' : 'Generate and Commit'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* REPOSITORY LIST VIEWPORT */}
+      {/* VIEWPORT 2: REPOSITORY LIST TAB */}
       {currentActiveDashboardTab === 'manage' && !activeViewportCourse && (
         <div className="roadmap-master-scaffold-container max-w-4xl w-full">
           <div className="interactive-glass-card">
@@ -193,7 +210,7 @@ function AICourseIntake() {
         </div>
       )}
 
-      {/* COMPREHENSIVE INTEGRATED ROADMAP DISPLAY VIEWPORT */}
+      {/* VIEWPORT 3: TIMELINE ROADMAP VIEW & WORKSPACE LAUNCHER */}
       {activeViewportCourse && (
         <div className="roadmap-master-scaffold-container animate-fadeIn">
           <div className="interactive-glass-card">
@@ -205,13 +222,18 @@ function AICourseIntake() {
                 <h1 style={{ fontSize: '2.2rem', fontWeight: 900, color: '#fff', margin: '0.2rem 0 0 0' }}>{activeViewportCourse.title}</h1>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem' }}>
-                <span style={{ background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#06b6d4' }}>
+                {/* 🚀 BUTTON TO LAUNCH THE INTERACTIVE WORKSPACE STUDY CANVAS */}
+                <button 
+                  onClick={() => setIsWorkspaceActive(true)} 
+                  className="prompt-matrix-submit-btn" 
+                  style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', padding: '0.5rem 1.25rem', fontSize: '0.8rem' }}
+                >
+                  📖 Enter Learning Workspace
+                </button>
+                <span style={{ background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#06b6d4', display: 'flex', alignItems: 'center' }}>
                   Depth: {activeViewportCourse.level}
                 </span>
-                <span style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#8b5cf6' }}>
-                  Timeframe: {activeViewportCourse.estimatedTime}
-                </span>
-                <button onClick={() => { setActiveViewportCourse(null); if (currentActiveDashboardTab === 'generate') setCurrentActiveDashboardTab('manage'); }} className="pill-selector-item" style={{ color: '#fff', borderColor: '#374151' }}>Back to Grid</button>
+                <button onClick={() => { setActiveViewportCourse(null); if (currentActiveDashboardTab === 'generate') setCurrentActiveDashboardTab('manage'); }} className="pill-selector-item" style={{ color: '#fff', borderColor: '#374151' }}>Back</button>
               </div>
             </div>
 
@@ -224,10 +246,9 @@ function AICourseIntake() {
                     <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem 0' }}>{moduleItem.moduleName}</h2>
                     <p style={{ fontSize: '0.9rem', color: '#9ca3af', lineHeight: '1.6', margin: '0 0 1.25rem 0' }}>{moduleItem.shortSummary}</p>
 
-                    {/* DYNAMIC VISUAL GUIDELINES FOR NON-TECHNICAL COURSES */}
                     {activeViewportCourse.contentType === "Non-Technical" && moduleItem.visualGuidelines && (
                       <div style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.25rem' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#06b6d4', display: 'block', textTransform: 'uppercase', marginBottom: '0.25rem' }}>🖼️ AI Visual Blueprint / Performance Posture Map:</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#06b6d4', display: 'block', textTransform: 'uppercase', marginBottom: '0.25rem' }}>🖼️ AI Visual Blueprint / Posture Map:</span>
                         <p style={{ fontSize: '0.85rem', color: '#e2e8f0', margin: 0, fontStyle: 'italic' }}>{moduleItem.visualGuidelines}</p>
                       </div>
                     )}
@@ -244,8 +265,6 @@ function AICourseIntake() {
                     </div>
 
                     <div className="meta-packages-asymmetric-row">
-                      
-                      {/* QUIZ CARD */}
                       <div className="package-pill-box">
                         <div className="pill-type-header quiz-theme">⚡ Scheduled Quiz Evaluation</div>
                         <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#fff' }}>{moduleItem.quiz.name}</h4>
@@ -255,30 +274,18 @@ function AICourseIntake() {
                         </div>
                       </div>
 
-                      {/* ASSIGNMENT CARD */}
                       <div className="package-pill-box">
                         <div className="pill-type-header assignment-theme">🛠️ Core Module Assignment</div>
                         <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#fff' }}>{moduleItem.assignment.name}</h4>
                         <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0.25rem 0 0 0' }}>{moduleItem.assignment.assignmentObjective}</p>
-                        <span style={{ display: 'inline-block', fontSize: '0.65rem', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', color: '#fbbf24', fontWeight: 'bold', marginTop: '0.5rem' }}>
-                          Complexity: {moduleItem.assignment.complexity}
-                        </span>
                       </div>
 
-                      {/* CURATED STREAM PLATFORM CARD */}
                       <div className="package-pill-box">
                         <div className="pill-type-header youtube-theme">📺 Curated Stream Platform</div>
-                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0 0 0.5rem 0' }}>Relevant video tracking queries for live session validation study:</p>
-                        <a 
-                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(moduleItem.youtubeSearchQuery)}`}
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="youtube-search-embed-link"
-                        >
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(moduleItem.youtubeSearchQuery)}`} target="_blank" rel="noreferrer" className="youtube-search-embed-link">
                           Launch Reference Tutorial Video
                         </a>
                       </div>
-
                     </div>
                   </div>
                 </div>

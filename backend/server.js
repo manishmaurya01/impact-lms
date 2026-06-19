@@ -1,4 +1,4 @@
-// Windows systems me local networks loopback connection errors bypass karne ke liye DNS override
+// Local loops ko bypass karne ke liye default loop configuration setting
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
@@ -8,6 +8,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { tavily } = require("@tavily/core");
 require('dotenv').config();
 
 const app = express();
@@ -22,9 +23,14 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms_key_99";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6KciGm1LiEU_PmoZ71sbIRsABSVhelaDxa_AwXU2b6sLA";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
 
-// --- MONGOOSE SCHEMAS & DATABASE MODELS ---
+// --- TAVILY API CLIENT INITIALIZATION ---
+// Apni custom free credits key .env me daal dena ya direct yahan replace kar sakte ho
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY || "tvly-YOUR_FREE_CREDITS_KEY_HERE";
+const tvly = tavily({ apiKey: TAVILY_API_KEY });
+
+// --- MONGOOSE PERSISTENT ROADMAP SCHEMA ---
 const CourseSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true },
@@ -35,8 +41,7 @@ const CourseSchema = new mongoose.Schema({
     moduleId: Number,
     moduleName: String,
     objective: String,
-    topics: [String],
-    youtubeSearchQuery: String,
+    topics: [String], 
     shortSummary: String,
     visualGuidelines: String, 
     quiz: {
@@ -55,42 +60,34 @@ const CourseSchema = new mongoose.Schema({
 
 const Course = mongoose.model('Course', CourseSchema);
 
-// --- DUAL-STAGE DATABASE HANDSHAKE WITH ATLAS & LOCAL FALLBACKS ---
+// --- MONGO INSTANCE INITIALIZATION ---
 const CLOUD_MONGO_URI = "mongodb+srv://mindmasters5167_db_user:r02VzCsxlIcdrSBQ@cluster0.4vnuwks.mongodb.net/lumina_learn_db?retryWrites=true&w=majority";
 const LOCAL_MONGO_URI = "mongodb://127.0.0.1:27017/lumina_learn_db";
 
 const connectDatabase = async () => {
   mongoose.set('bufferCommands', false);
-  
   try {
-    console.log('📡 [DB_CONNECT]: Attempting Cloud MongoDB Atlas Cluster link...');
     await mongoose.connect(CLOUD_MONGO_URI, { serverSelectionTimeoutMS: 5000 });
-    console.log('📡 [DATABASE_CONNECTED]: Successfully connected to MongoDB Cloud Atlas (lumina_learn_db)!');
+    console.log('📡 [DATABASE_CONNECTED]: Connected to MongoDB Cloud Atlas successfully!');
   } catch (cloudErr) {
-    console.warn('⚠️ [CLOUD_FAILED]: Cloud MongoDB Atlas failed. Switching to Local MongoDB...');
     try {
       await mongoose.connect(LOCAL_MONGO_URI, { serverSelectionTimeoutMS: 4000 });
       console.log('📡 [DATABASE_CONNECTED]: Connected to Local MongoDB successfully!');
     } catch (localErr) {
-      console.error('❌ [DATABASE_OFFLINE]: Both Cloud and Local MongoDB are offline.');
-      console.log('💡 [MEMORY_MODE]: Running dynamically in-memory mode seamlessly.');
+      console.error('❌ [DATABASE_OFFLINE]: DB Subsystems offline.');
     }
   }
 };
-
 connectDatabase();
 
-// --- GOOGLE GEMINI Rest API CONNECTOR ---
+// --- GOOGLE GEMINI CORE Rest CLIENT ---
 const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
   
   const requestPayload = {
     contents: [{ parts: [{ text: userQuery }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] },
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: customSchema
-    }
+    generationConfig: { responseMimeType: "application/json", responseSchema: customSchema }
   };
 
   const response = await fetch(url, {
@@ -101,14 +98,14 @@ const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
   
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Gemini status code error: ${response.status} - ${errText}`);
+    throw new Error(`Gemini status query error: ${response.status} - ${errText}`);
   }
   
   const responseData = await response.json();
   return responseData.candidates?.[0]?.content?.parts?.[0]?.text;
 };
 
-// --- SESSION SECURITY LAYER MIDDLEWARE ---
+// --- SECURITY HANDSHAKE MIDDLEWARE ---
 const authorizeSessionToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -121,57 +118,19 @@ const authorizeSessionToken = (req, res, next) => {
   });
 };
 
-// --- DUMMY DIAGNOSTIC ENDPOINT FOR NETWORK VERIFICATION ---
+// --- DIAGNOSTIC HEALTH CHECK ---
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    success: true, 
-    message: "LuminaLearn backend is alive and accessible!",
-    dbStatus: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected"
-  });
+  res.status(200).json({ success: true, message: "Server is online and working!" });
 });
 
-// --- REGISTER USER ---
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { fullName, email } = req.body;
-    res.status(201).json({ 
-      success: true, 
-      message: 'Workspace credentials node compiled successfully (Dry-Run Mode).',
-      user: { fullName, email }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Internal signup validator crash.' });
-  }
-});
-
-// --- LOGIN GATEWAY ---
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { email } = req.body;
-    const mockUserId = new mongoose.Types.ObjectId();
-    const token = jwt.sign({ userId: mockUserId, email }, JWT_SECRET, { expiresIn: '24h' });
-
-    res.status(200).json({
-      success: true,
-      token,
-      user: { id: mockUserId, fullName: "Manish Maurya", email, role: "Student", domain: "Programming" }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Authentication error.' });
-  }
-});
-
-// --- AI COURSE GENERATOR (AUTO SAVE TO DB IF ONLINE) ---
+// --- AI ROADMAP SCHEMATIC GENERATOR ---
 app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const { prompt, level } = req.body;
   const activeUserId = req.user.userId;
 
-  if (!prompt) return res.status(400).json({ success: false, error: 'Prompt is required.' });
+  if (!prompt) return res.status(400).json({ success: false, error: 'Prompt instruction empty inside payload.' });
 
-  const systemInstructions = `You are LuminaLearn smart pedagogical system engine. Evaluate the subject matter query. 
-  If it is technical (coding/engineering), generate modular tracks accordingly. 
-  If it is non-technical (e.g., sports, dance, cooking, fitness), remove code tasks and focus completely on visual guidelines, physical postures, training frameworks, or real-life demonstration mapping.
-  You must capture this mapping strategy inside the fields 'contentType' ("Technical" or "Non-Technical") and 'visualGuidelines' (detailing what charts, images, actions or postures to verify). Every single module block must scale dynamically and must contain an exclusive quiz element data bundle and an assignment track.`;
+  const systemInstructions = `You are LuminaLearn smart pedagogical architecture system. Evaluate the subject matter query and generate dynamic modular modules containing sub-topics as elements inside text arrays fields.`;
   
   const structuredResponseSchema = {
     type: "object",
@@ -189,39 +148,30 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
             moduleName: { type: "string" },
             objective: { type: "string" },
             topics: { type: "array", items: { type: "string" } },
-            youtubeSearchQuery: { type: "string" },
             shortSummary: { type: "string" },
             visualGuidelines: { type: "string" },
             quiz: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                quizTopic: { type: "string" },
-                duration: { type: "string" }
-              },
-              required: ["name", "quizTopic", "duration"]
+              name: { type: "string" },
+              quizTopic: { type: "string" },
+              duration: { type: "string" }
             },
             assignment: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                assignmentObjective: { type: "string" },
-                complexity: { type: "string" }
-              },
-              required: ["name", "assignmentObjective", "complexity"]
+              name: { type: "string" },
+              assignmentObjective: { type: "string" },
+              complexity: { type: "string" }
             }
           },
-          required: ["moduleId", "moduleName", "objective", "topics", "youtubeSearchQuery", "shortSummary", "visualGuidelines", "quiz", "assignment"]
+          required: ["moduleId", "moduleName", "objective", "topics", "shortSummary", "visualGuidelines", "quiz", "assignment"]
         }
       }
     },
     required: ["title", "level", "estimatedTime", "contentType", "modules"]
   };
 
-  const userQueryPrompt = `Construct a complete course matrix roadmap on the topic: "${prompt}" suited for depth layer: "${level || 'Beginner'}". Output stringified JSON format structure directly without markdown backticks wrapper strings.`;
+  const userQueryPrompt = `Construct a clear structural course layout blueprint matrix for: "${prompt}" suited for layer: "${level || 'Beginner'}". Output stringified JSON format structure directly without markdown formatting backticks strings.`;
 
   try {
-    console.log(`🤖 [AI_ENGINE]: Parsing course data stream elements structure for user: ${activeUserId}`);
+    console.log(`🤖 [AI_INITIALIZER]: Compiling timeline grids for: ${prompt}`);
     const rawAiText = await callGeminiAPI(userQueryPrompt, systemInstructions, structuredResponseSchema);
     
     let jsonFormattedStr = rawAiText.trim();
@@ -242,49 +192,94 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
 
     if (mongoose.connection.readyState === 1) {
       await persistentCourseNode.save();
-      console.log(`💾 [DB_SUCCESS]: Course successfully saved inside active MongoDB collection.`);
-    } else {
-      console.log(`💡 [MEMORY_MODE]: Database is offline. Outputting generated roadmap directly without save.`);
     }
 
     return res.status(201).json({ success: true, data: persistentCourseNode });
 
   } catch (error) {
-    console.error('❌ [GENERATION_FAULT]:', error);
-    res.status(500).json({ success: false, error: 'AI model pipeline crashed.', details: error.message });
+    console.error('❌ [GENERATION_FAULT]:', error.message);
+    res.status(500).json({ success: false, error: 'AI blueprint processing engine crashed.' });
   }
 });
 
-// --- GET ALL SAVED COURSES ---
+// --- 🚀 2. NEW LOGIC: TAVILY ENGINE DYNAMIC REFERENCE GATEWAY ROUTE ---
+app.post('/api/courses/topics/tavily-search', authorizeSessionToken, async (req, res) => {
+  const { topicName, courseTitle } = req.body;
+
+  if (!topicName) {
+    return res.status(400).json({ success: false, error: 'Topic execution target name missing.' });
+  }
+
+  try {
+    console.log(`🔍 [TAVILY_API_CALL]: Querying dynamic index tracking parameters for: ${topicName}`);
+
+    // Exact GFG indexing formulation filtering queries matrices strings
+    const tavilyTargetQuery = `${courseTitle || ''} ${topicName} site:geeksforgeeks.org`;
+    
+    const searchResponse = await tvly.search(tavilyTargetQuery, {
+      searchDepth: "basic", 
+      maxResults: 3,
+      includeAnswers: false
+    });
+
+    // Default dynamic text safe fallback if search parameters bounds empty arrays
+    let targetedGeeksLink = `https://www.geeksforgeeks.org/search/${encodeURIComponent(topicName)}`;
+    
+    if (searchResponse && searchResponse.results && searchResponse.results.length > 0) {
+      const bestMacthedRef = searchResponse.results.find(r => r.url.includes('geeksforgeeks.org'));
+      if (bestMacthedRef) {
+        targetedGeeksLink = bestMacthedRef.url;
+      } else {
+        targetedGeeksLink = searchResponse.results[0].url; // General topmost backup web node
+      }
+    }
+
+    const clearQueryUrlStr = encodeURIComponent(`${courseTitle || ''} ${topicName}`);
+    const resourcePackage = {
+      geeksForGeeks: targetedGeeksLink,
+      youtubeEmbed: `https://www.youtube.com/embed?listType=search&list=${clearQueryUrlStr}`,
+      wikipedia: `https://en.wikipedia.org/wiki/Special:Search?search=${clearQueryUrlStr}`
+    };
+
+    return res.status(200).json({ success: true, data: resourcePackage });
+
+  } catch (error) {
+    console.error('⚠️ [TAVILY_EXPIRED_FALLBACK]: Free credits loop limit overflow exception:', error.message);
+    const clearQueryUrlStr = encodeURIComponent(`${courseTitle || ''} ${topicName}`);
+    return res.status(200).json({
+      success: true,
+      fallbackMode: true,
+      data: {
+        geeksForGeeks: `https://www.geeksforgeeks.org/search/${clearQueryUrlStr}`,
+        youtubeEmbed: `https://www.youtube.com/embed?listType=search&list=${clearQueryUrlStr}`,
+        wikipedia: `https://en.wikipedia.org/wiki/Special:Search?search=${clearQueryUrlStr}`
+      }
+    });
+  }
+});
+
+// --- FETCH HISTORICAL USER RECORDS ---
 app.get('/api/courses', authorizeSessionToken, async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(200).json({ success: true, data: [] });
-    }
-    const courses = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: courses });
+    const records = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: records });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve cloud stored registries.' });
+    res.status(500).json({ success: false, message: 'Database error.' });
   }
 });
 
-// --- DELETE/MANAGE COURSE OPERATION ROUTE ---
+// --- DELETE MAP ELEMENT DOCUMENT NODE ---
 app.delete('/api/courses/:id', authorizeSessionToken, async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(400).json({ success: false, message: 'Database layer is offline.' });
-    }
-    const result = await Course.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
-    if (!result) return res.status(404).json({ success: false, message: 'Document not found.' });
-    res.status(200).json({ success: true, message: 'Roadmap node cleared successfully.' });
+    await Course.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
+    res.status(200).json({ success: true, message: 'Node cleared successfully.' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Database deletion query crashed.' });
+    res.status(500).json({ success: false, message: 'Database error.' });
   }
 });
 
-// Strictly binding on '0.0.0.0' interface so other computers on local network can connect easily
 app.listen(PORT, '0.0.0.0', () => {
   console.log("-----------------------------------------------------------------");
-  console.log(`🚀 [SERVER ONLINE]: LuminaLearn Backend is fully serving on port: ${PORT}`);
+  console.log(`🚀 [SERVER ONLINE]: Tavily Integration Layer working on port: ${PORT}`);
   console.log("-----------------------------------------------------------------");
 });
