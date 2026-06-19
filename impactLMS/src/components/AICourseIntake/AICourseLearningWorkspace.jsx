@@ -5,10 +5,6 @@ function AICourseLearningWorkspace({ courseData, onBack }) {
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [completedTopics, setCompletedTopics] = useState([]);
   const [activeExpandedModule, setActiveExpandedModule] = useState(0);
-  
-  // Tavily dynamic query state elements trackers
-  const [activeLinksMatrix, setActiveLinksMatrix] = useState(null);
-  const [isSearchingTavily, setIsSearchingTavily] = useState(false);
 
   useEffect(() => {
     if (courseData?._id) {
@@ -18,39 +14,6 @@ function AICourseLearningWorkspace({ courseData, onBack }) {
       }
     }
   }, [courseData]);
-
-  // 🚀 TAVILY DATA AGGREGATION ROUTE ACCESS POINT HOOK
-  const handleTopicSelection = async (topicName) => {
-    setSelectedTopic(topicName);
-    setIsSearchingTavily(true);
-    setActiveLinksMatrix(null);
-
-    try {
-      const token = localStorage.getItem('token');
-      const activeHost = window.location.hostname;
-
-      const response = await fetch(`http://${activeHost}:5000/api/courses/topics/tavily-search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          topicName: topicName,
-          courseTitle: courseData.title
-        })
-      });
-
-      const serverPayload = await response.json();
-      if (serverPayload.success) {
-        setActiveLinksMatrix(serverPayload.data);
-      }
-    } catch (err) {
-      console.error("Tavily dynamic link resolution pipeline fault:", err);
-    } finally {
-      setIsSearchingTavily(false);
-    }
-  };
 
   const toggleTopicCompletion = (topicName) => {
     let updatedList;
@@ -73,13 +36,29 @@ function AICourseLearningWorkspace({ courseData, onBack }) {
   const completedCount = completedTopics.length;
   const progressPercentage = totalTopicsCount > 0 ? Math.round((completedCount / totalTopicsCount) * 100) : 0;
 
+  // 🚀 HIGH-SPEED EMBED ENGINE (NO AI / NO BACKEND LOAD)
+  const getResourceLinks = (topicName) => {
+    // Exact topic context and title search term strings combination
+    const rawSearchQuery = `${courseData.title} ${topicName} tutorial`;
+    const cleanQuery = encodeURIComponent(rawSearchQuery);
+    
+    return {
+      geeksForGeeks: `https://www.geeksforgeeks.org/search/${encodeURIComponent(courseData.title + ' ' + topicName)}`,
+      // 📺 New absolute structure uses native standard query mapping to auto-play relevant video content inside iframe 
+      youtubeEmbed: `https://www.youtube.com/embed?q=${cleanQuery}&rel=0&modestbranding=1`,
+      wikipedia: `https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(topicName)}`
+    };
+  };
+
+  const activeLinks = selectedTopic ? getResourceLinks(selectedTopic) : null;
+
   return (
     <div className="workspace-ambient-wrapper">
       <div className="cyber-ambient-grid-underlay"></div>
       
       <div className="workspace-dual-pane-scaffold">
         
-        {/* LEFT PANE: NAVIGATION TIMELINE CHECKLIST */}
+        {/* LEFT PANE: ROADMAP TIMELINE ACCORDION */}
         <div className="left-pane-timeline-sidebar">
           <div className="sidebar-header-branding">
             <button onClick={onBack} className="sidebar-back-button">&larr; Return to Dashboard</button>
@@ -88,13 +67,13 @@ function AICourseLearningWorkspace({ courseData, onBack }) {
             
             <div className="sidebar-progress-card">
               <div className="progress-labels">
-                <span className="lbl-progress">Syllabus Covered:</span>
+                <span className="lbl-progress">Syllabus Progress:</span>
                 <span className="val-progress">{progressPercentage}%</span>
               </div>
               <div className="progress-bar-track">
                 <div className="progress-bar-fill-neon" style={{ width: `${progressPercentage}%` }}></div>
               </div>
-              <span className="progress-counts">{completedCount} of {totalTopicsCount} topics completed</span>
+              <span className="progress-counts">{completedCount} / {totalTopicsCount} Topics Met</span>
             </div>
           </div>
 
@@ -110,7 +89,7 @@ function AICourseLearningWorkspace({ courseData, onBack }) {
                     <div className="trigger-badge">M_{mIdx + 1}</div>
                     <div className="trigger-info">
                       <h4>{module.moduleName}</h4>
-                      <p>{module.topics.length} Target Topics</p>
+                      <p>{module.topics.length} Sub-Topics</p>
                     </div>
                   </div>
 
@@ -122,7 +101,7 @@ function AICourseLearningWorkspace({ courseData, onBack }) {
                         return (
                           <div 
                             key={tIdx} 
-                            onClick={() => handleTopicSelection(topic)}
+                            onClick={() => setSelectedTopic(topic)}
                             className={`topic-nested-item-row ${isCurrentActive ? 'is-active-highlight' : ''}`}
                           >
                             <div 
@@ -143,51 +122,45 @@ function AICourseLearningWorkspace({ courseData, onBack }) {
           </div>
         </div>
 
-        {/* RIGHT PANE: ACCURATE TAVILY RESULT INTERFACE CANVASES */}
+        {/* RIGHT PANE: CONSOLIDATED CENTRAL VIEWPORT */}
         <div className="right-pane-rich-workspace">
           
           {!selectedTopic && (
             <div className="workspace-idle-onboarding-panel">
               <div className="idle-globe-ambient-neon"></div>
-              <h2 className="workspace-welcome-title">Tavily Powered Reference Lab</h2>
-              <p className="workspace-welcome-sub">Left menu parameters timeline se koi bhi target topic click kijiye. Tavily search clusters instantly GeeksforGeeks standard links aur relevant walkthrough streams generate kar dega!</p>
+              <h2 className="workspace-welcome-title">Production Study Console</h2>
+              <p className="workspace-welcome-sub">Left side panel se kisi bhi topic par click kijiye. Hamara integrated standalone player instantly relevant tutorial video bina website chhode play kar dega!</p>
             </div>
           )}
 
-          {isSearchingTavily && (
-            <div className="workspace-content-loading-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-              <div className="glowing-cyber-spinner"></div>
-              <p style={{ color: '#06b6d4', fontWeight: 'bold', fontFamily: 'monospace', marginTop: '1rem' }}>Tavily AI Search crawling real-time technical repositories...</p>
-            </div>
-          )}
-
-          {!isSearchingTavily && selectedTopic && activeLinksMatrix && (
+          {selectedTopic && activeLinks && (
             <div className="study-content-scrollable-canvas" style={{ maxWidth: '100%', padding: '2.5rem' }}>
               
-              <div className="study-canvas-header-block mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+              <div className="study-canvas-header-block mb-6" style={{ display: 'flex', System: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
                 <div>
-                  <span className="category-tag-neon">LuminaLearn Tavily Stream Sync Engine Active</span>
+                  <span className="category-tag-neon">LuminaLearn Active Streaming Console</span>
                   <h1 className="study-main-topic-headline" style={{ fontSize: '1.8rem', marginTop: '0.25rem', color: '#fff' }}>{selectedTopic}</h1>
                 </div>
                 
                 <button 
                   onClick={() => toggleTopicCompletion(selectedTopic)} 
                   className={`mark-done-btn-badge ${completedTopics.includes(selectedTopic) ? 'is-done-active' : ''}`}
+                  style={{ marginLeft: 'auto' }}
                 >
                   {completedTopics.includes(selectedTopic) ? '✓ Completed' : 'Mark as Complete'}
                 </button>
               </div>
 
-              {/* 📺 1. LIVE INTERNAL NATIVE EMBED VIDEO MODULE FRAME CONTAINER */}
+              {/* 📺 1. EMBEDDED DYNAMIC TUTORIAL PLAYER CONTAINER (AUTOMATIC SEARCH TARGET) */}
               <div className="code-block-workspace-terminal mb-6" style={{ border: '1px solid rgba(239, 68, 68, 0.15)' }}>
                 <div className="terminal-header-top" style={{ background: '#1c0d0d' }}>
                   <div className="terminal-bullets"></div>
-                  <span className="terminal-lbl" style={{ color: '#f87171', fontWeight: 'bold' }}>📺 Dynamic Reference Instructional Video Block</span>
+                  <span className="terminal-lbl" style={{ color: '#f87171', fontWeight: 'bold' }}>📺 Live Dedicated Tutorial Reference Video</span>
                 </div>
-                <div style={{ position: 'relative', paddingBottom: '45%', height: 0, overflow: 'hidden', background: '#000' }}>
+                <div style={{ position: 'relative', paddingBottom: '50%', height: 0, overflow: 'hidden', background: '#000' }}>
                   <iframe 
-                    src={activeLinksMatrix.youtubeEmbed}
-                    title="In-App Target Stream Player"
+                    src={activeLinks.youtubeEmbed}
+                    title="In-House Embedded Video Player"
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -195,25 +168,25 @@ function AICourseLearningWorkspace({ courseData, onBack }) {
                 </div>
               </div>
 
-              {/* 🟩 2. TAVILY VERIFIED LINKS REDIRECTION MATRIX BOX */}
+              {/* 🟩 2. DIRECT STUDY REFERENCE HUB PATHWAYS */}
               <div className="study-takeaways-glowing-card">
-                <h3 className="section-sub-title" style={{ color: '#06b6d4' }}>📚 Tavily Verified Direct Study Materials</h3>
+                <h3 className="section-sub-title" style={{ color: '#06b6d4' }}>🟩 Core Problem Sets & Archives</h3>
                 <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1.5rem' }}>
-                  Tavily Engine search routers ne is specified concept query ke liye sabse valid code archives link map kiye hain:
+                  Is particular topic ke original coding variables, step-by-step algorithms, and optimization programs ko padhne ke liye core platform nodes open kijiye:
                 </p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
                   
-                  <a href={activeLinksMatrix.geeksForGeeks} target="_blank" rel="noreferrer" className="package-pill-box" style={{ textDecoration: 'none', display: 'block', background: 'rgba(34,197,94,0.03)', borderColor: 'rgba(34,197,94,0.2)' }}>
-                    <div className="pill-type-header" style={{ color: '#22c55e' }}>🟩 GeeksforGeeks Original Sheet</div>
-                    <h4 style={{ fontSize: '0.85rem', color: '#fff', margin: '0.25rem 0 0 0' }}>Launch Core Documentation</h4>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', marginTop: '0.25rem' }}>Open direct optimized coding layouts and logic variations &rarr;</span>
+                  <a href={activeLinks.geeksForGeeks} target="_blank" rel="noreferrer" className="package-pill-box" style={{ textDecoration: 'none', display: 'block', background: 'rgba(34,197,94,0.03)', borderColor: 'rgba(34,197,94,0.2)' }}>
+                    <div className="pill-type-header" style={{ color: '#22c55e' }}>🟩 GeeksforGeeks Library</div>
+                    <h4 style={{ fontSize: '0.85rem', color: '#fff', margin: '0.25rem 0 0 0' }}>Launch Targeted Search</h4>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', marginTop: '0.25rem' }}>Open direct optimized implementations & variations &rarr;</span>
                   </a>
 
-                  <a href={activeLinksMatrix.wikipedia} target="_blank" rel="noreferrer" className="package-pill-box" style={{ textDecoration: 'none', display: 'block', background: 'rgba(56,189,248,0.03)', borderColor: 'rgba(56,189,248,0.2)' }}>
-                    <div className="pill-type-header" style={{ color: '#38bdf8' }}>% Wikipedia Theoretical Grid</div>
-                    <h4 style={{ fontSize: '0.85rem', color: '#fff', margin: '0.25rem 0 0 0' }}>Theorems & Definitions</h4>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', marginTop: '0.25rem' }}>Review asymptotic analysis and usage paradigms &rarr;</span>
+                  <a href={activeLinks.wikipedia} target="_blank" rel="noreferrer" className="package-pill-box" style={{ textDecoration: 'none', display: 'block', background: 'rgba(56,189,248,0.03)', borderColor: 'rgba(56,189,248,0.2)' }}>
+                    <div className="pill-type-header" style={{ color: '#38bdf8' }}>🟦 Wikipedia Matrix</div>
+                    <h4 style={{ fontSize: '0.85rem', color: '#fff', margin: '0.25rem 0 0 0' }}>Theorems & Analysis</h4>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', marginTop: '0.25rem' }}>Review core definitions & asymptotic complexities &rarr;</span>
                   </a>
 
                 </div>
