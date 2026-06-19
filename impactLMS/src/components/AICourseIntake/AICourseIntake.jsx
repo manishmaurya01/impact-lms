@@ -11,6 +11,12 @@ function AICourseIntake() {
   const [activeViewportCourse, setActiveViewportCourse] = useState(null);
   const [currentActiveDashboardTab, setCurrentActiveDashboardTab] = useState('generate'); 
 
+  // 🚀 DYNAMIC IP RESOLVER FOR MULTI-COMPUTER LOCAL NETWORKS
+  const getApiUrl = (endpoint) => {
+    const activeHost = window.location.hostname;
+    return `http://${activeHost}:5000${endpoint}`;
+  };
+
   useEffect(() => {
     fetchSavedCoursesFromDatabase();
   }, []);
@@ -20,7 +26,7 @@ function AICourseIntake() {
       const activeSessionToken = localStorage.getItem('token');
       if (!activeSessionToken) return;
 
-      const response = await fetch('/api/courses', {
+      const response = await fetch(getApiUrl('/api/courses'), {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${activeSessionToken}` }
       });
@@ -44,7 +50,7 @@ function AICourseIntake() {
       const activeSessionToken = localStorage.getItem('token');
       if (!activeSessionToken) throw new Error("Authorization missing. Re-login to setup session identifier context tokens.");
 
-      const response = await fetch('/api/courses/generate', {
+      const response = await fetch(getApiUrl('/api/courses/generate'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +77,7 @@ function AICourseIntake() {
 
     try {
       const activeSessionToken = localStorage.getItem('token');
-      const response = await fetch(`/api/courses/${courseId}`, {
+      const response = await fetch(getApiUrl(`/api/courses/${courseId}`), {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${activeSessionToken}` }
       });
@@ -149,7 +155,7 @@ function AICourseIntake() {
         </div>
       )}
 
-      {/* REPOSITORY LIST tab VIEWPORT */}
+      {/* REPOSITORY LIST VIEWPORT */}
       {currentActiveDashboardTab === 'manage' && !activeViewportCourse && (
         <div className="roadmap-master-scaffold-container max-w-4xl w-full">
           <div className="interactive-glass-card">
@@ -187,7 +193,7 @@ function AICourseIntake() {
         </div>
       )}
 
-      {/* FULL ROADMAP CONTAINER TIMELINE VIEWPORT */}
+      {/* COMPREHENSIVE INTEGRATED ROADMAP DISPLAY VIEWPORT */}
       {activeViewportCourse && (
         <div className="roadmap-master-scaffold-container animate-fadeIn">
           <div className="interactive-glass-card">
@@ -218,7 +224,7 @@ function AICourseIntake() {
                     <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem 0' }}>{moduleItem.moduleName}</h2>
                     <p style={{ fontSize: '0.9rem', color: '#9ca3af', lineHeight: '1.6', margin: '0 0 1.25rem 0' }}>{moduleItem.shortSummary}</p>
 
-                    {/* DYNAMIC VISUAL GUIDELINES RENDER LOCK */}
+                    {/* DYNAMIC VISUAL GUIDELINES FOR NON-TECHNICAL COURSES */}
                     {activeViewportCourse.contentType === "Non-Technical" && moduleItem.visualGuidelines && (
                       <div style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.25rem' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#06b6d4', display: 'block', textTransform: 'uppercase', marginBottom: '0.25rem' }}>🖼️ AI Visual Blueprint / Performance Posture Map:</span>
@@ -244,8 +250,8 @@ function AICourseIntake() {
                         <div className="pill-type-header quiz-theme">⚡ Scheduled Quiz Evaluation</div>
                         <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#fff' }}>{moduleItem.quiz.name}</h4>
                         <div style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace', marginTop: '0.5rem' }}>
-                          <div>Total Questions: {moduleItem.quiz.totalQuestions} items</div>
-                          <div>Duration: {moduleItem.quiz.timeLimitMins} Mins</div>
+                          <div>Topic Scope: {moduleItem.quiz.quizTopic}</div>
+                          <div>Duration: {moduleItem.quiz.duration}</div>
                         </div>
                       </div>
 
@@ -253,13 +259,13 @@ function AICourseIntake() {
                       <div className="package-pill-box">
                         <div className="pill-type-header assignment-theme">🛠️ Core Module Assignment</div>
                         <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#fff' }}>{moduleItem.assignment.name}</h4>
-                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0.25rem 0 0 0' }}>{moduleItem.assignment.objective}</p>
+                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0.25rem 0 0 0' }}>{moduleItem.assignment.assignmentObjective}</p>
                         <span style={{ display: 'inline-block', fontSize: '0.65rem', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', color: '#fbbf24', fontWeight: 'bold', marginTop: '0.5rem' }}>
                           Complexity: {moduleItem.assignment.complexity}
                         </span>
                       </div>
 
-                      {/* YOUTUBE VIDEO STREAM CARD */}
+                      {/* CURATED STREAM PLATFORM CARD */}
                       <div className="package-pill-box">
                         <div className="pill-type-header youtube-theme">📺 Curated Stream Platform</div>
                         <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0 0 0.5rem 0' }}>Relevant video tracking queries for live session validation study:</p>

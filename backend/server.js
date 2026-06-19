@@ -1,3 +1,4 @@
+// Windows systems me local networks loopback connection errors bypass karne ke liye DNS override
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
@@ -10,14 +11,20 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+
+// --- CROSS-ORIGIN RESOURCE SHARING (CORS) SETTINGS ---
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms_key_99";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
 
-// --- MONGOOSE PERSISTENCE SCHEMAS ---
+// --- MONGOOSE SCHEMAS & DATABASE MODELS ---
 const CourseSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true },
@@ -33,16 +40,13 @@ const CourseSchema = new mongoose.Schema({
     shortSummary: String,
     visualGuidelines: String, 
     quiz: {
-      quizId: String,
       name: String,
-      timeLimitMins: Number,
-      totalQuestions: Number,
-      syllabusScope: [String]
+      quizTopic: String,
+      duration: String
     },
     assignment: {
-      assignmentId: String,
       name: String,
-      objective: String,
+      assignmentObjective: String,
       complexity: String
     }
   }],
@@ -51,20 +55,42 @@ const CourseSchema = new mongoose.Schema({
 
 const Course = mongoose.model('Course', CourseSchema);
 
-// --- MONGO CONNECTION INITIALIZATION ---
-const MONGO_URI = "mongodb+srv://mindmasters5167_db_user:r02VzCsxlIcdrSBQ@cluster0.4vnuwks.mongodb.net/lumina_learn_db?retryWrites=true&w=majority";
-mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
-  .then(() => console.log('📡 [DATABASE_PERSISTED]: Connected to MongoDB Cloud Atlas (lumina_learn_db) successfully.'))
-  .catch(err => console.error('❌ [DATA FAULT]: MongoDB link crashed:', err.message));
+// --- DUAL-STAGE DATABASE HANDSHAKE WITH ATLAS & LOCAL FALLBACKS ---
+const CLOUD_MONGO_URI = "mongodb+srv://mindmasters5167_db_user:r02VzCsxlIcdrSBQ@cluster0.4vnuwks.mongodb.net/lumina_learn_db?retryWrites=true&w=majority";
+const LOCAL_MONGO_URI = "mongodb://127.0.0.1:27017/lumina_learn_db";
 
-// --- GOOGLE GEMINI CORE ENGINE Rest CLIENT ---
+const connectDatabase = async () => {
+  mongoose.set('bufferCommands', false);
+  
+  try {
+    console.log('📡 [DB_CONNECT]: Attempting Cloud MongoDB Atlas Cluster link...');
+    await mongoose.connect(CLOUD_MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+    console.log('📡 [DATABASE_CONNECTED]: Successfully connected to MongoDB Cloud Atlas (lumina_learn_db)!');
+  } catch (cloudErr) {
+    console.warn('⚠️ [CLOUD_FAILED]: Cloud MongoDB Atlas failed. Switching to Local MongoDB...');
+    try {
+      await mongoose.connect(LOCAL_MONGO_URI, { serverSelectionTimeoutMS: 4000 });
+      console.log('📡 [DATABASE_CONNECTED]: Connected to Local MongoDB successfully!');
+    } catch (localErr) {
+      console.error('❌ [DATABASE_OFFLINE]: Both Cloud and Local MongoDB are offline.');
+      console.log('💡 [MEMORY_MODE]: Running dynamically in-memory mode seamlessly.');
+    }
+  }
+};
+
+connectDatabase();
+
+// --- GOOGLE GEMINI Rest API CONNECTOR ---
 const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
   
   const requestPayload = {
     contents: [{ parts: [{ text: userQuery }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] },
-    generationConfig: { responseMimeType: "application/json", responseSchema: customSchema }
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: customSchema
+    }
   };
 
   const response = await fetch(url, {
@@ -75,32 +101,72 @@ const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
   
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Gemini pipeline block status code: ${response.status} - ${errText}`);
+    throw new Error(`Gemini status code error: ${response.status} - ${errText}`);
   }
   
   const responseData = await response.json();
   return responseData.candidates?.[0]?.content?.parts?.[0]?.text;
 };
 
-// --- AUTH PROTECTIVE SUBSYSTEM ---
+// --- SESSION SECURITY LAYER MIDDLEWARE ---
 const authorizeSessionToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ success: false, message: 'Authorization verification parameter missing.' });
+  if (!token) return res.status(401).json({ success: false, message: 'Authorization parameter missing.' });
 
   jwt.verify(token, JWT_SECRET, (err, decodedUser) => {
-    if (err) return res.status(403).json({ success: false, message: 'Session telemetry handshake validation failure.' });
+    if (err) return res.status(403).json({ success: false, message: 'Session telemetry expired.' });
     req.user = decodedUser;
     next();
   });
 };
 
-// --- 1. AI COURSE GENERATION ROUTE (AUTO SAVES TO DB) ---
+// --- DUMMY DIAGNOSTIC ENDPOINT FOR NETWORK VERIFICATION ---
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    success: true, 
+    message: "LuminaLearn backend is alive and accessible!",
+    dbStatus: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected"
+  });
+});
+
+// --- REGISTER USER ---
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { fullName, email } = req.body;
+    res.status(201).json({ 
+      success: true, 
+      message: 'Workspace credentials node compiled successfully (Dry-Run Mode).',
+      user: { fullName, email }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Internal signup validator crash.' });
+  }
+});
+
+// --- LOGIN GATEWAY ---
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const mockUserId = new mongoose.Types.ObjectId();
+    const token = jwt.sign({ userId: mockUserId, email }, JWT_SECRET, { expiresIn: '24h' });
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: { id: mockUserId, fullName: "Manish Maurya", email, role: "Student", domain: "Programming" }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Authentication error.' });
+  }
+});
+
+// --- AI COURSE GENERATOR (AUTO SAVE TO DB IF ONLINE) ---
 app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const { prompt, level } = req.body;
   const activeUserId = req.user.userId;
 
-  if (!prompt) return res.status(400).json({ success: false, error: 'Target goal query instruction empty inside req payload.' });
+  if (!prompt) return res.status(400).json({ success: false, error: 'Prompt is required.' });
 
   const systemInstructions = `You are LuminaLearn smart pedagogical system engine. Evaluate the subject matter query. 
   If it is technical (coding/engineering), generate modular tracks accordingly. 
@@ -129,23 +195,20 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
             quiz: {
               type: "object",
               properties: {
-                quizId: { type: "string" },
                 name: { type: "string" },
-                timeLimitMins: { type: "integer" },
-                totalQuestions: { type: "integer" },
-                syllabusScope: { type: "array", items: { type: "string" } }
+                quizTopic: { type: "string" },
+                duration: { type: "string" }
               },
-              required: ["quizId", "name", "timeLimitMins", "totalQuestions", "syllabusScope"]
+              required: ["name", "quizTopic", "duration"]
             },
             assignment: {
               type: "object",
               properties: {
-                assignmentId: { type: "string" },
                 name: { type: "string" },
-                objective: { type: "string" },
+                assignmentObjective: { type: "string" },
                 complexity: { type: "string" }
               },
-              required: ["assignmentId", "name", "objective", "complexity"]
+              required: ["name", "assignmentObjective", "complexity"]
             }
           },
           required: ["moduleId", "moduleName", "objective", "topics", "youtubeSearchQuery", "shortSummary", "visualGuidelines", "quiz", "assignment"]
@@ -177,43 +240,51 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
       modules: compiledCoursePayload.modules
     });
 
-    await persistentCourseNode.save();
-    console.log(`💾 [DB_STRETCH_COMMIT]: Course blueprint locked into cloud architecture indices: ${persistentCourseNode._id}`);
+    if (mongoose.connection.readyState === 1) {
+      await persistentCourseNode.save();
+      console.log(`💾 [DB_SUCCESS]: Course successfully saved inside active MongoDB collection.`);
+    } else {
+      console.log(`💡 [MEMORY_MODE]: Database is offline. Outputting generated roadmap directly without save.`);
+    }
 
-    return res.status(201).json({ success: true, message: 'AI course blueprint committed into collection successfully.', data: persistentCourseNode });
+    return res.status(201).json({ success: true, data: persistentCourseNode });
 
   } catch (error) {
-    console.error('❌ [GENERATION_DB_FAULT]:', error);
-    res.status(500).json({ success: false, error: 'Database tracking or AI model pipeline crashed.', details: error.message });
+    console.error('❌ [GENERATION_FAULT]:', error);
+    res.status(500).json({ success: false, error: 'AI model pipeline crashed.', details: error.message });
   }
 });
 
-// --- 2. FETCH ALL HISTORICAL SAVED COURSES ---
+// --- GET ALL SAVED COURSES ---
 app.get('/api/courses', authorizeSessionToken, async (req, res) => {
   try {
-    console.log(`📡 [FETCH_PIPELINE]: Syncing historical dashboard nodes query for user: ${req.user.userId}`);
-    const synchronizedUserHistoryRecords = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: synchronizedUserHistoryRecords });
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    const courses = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: courses });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve cloud stored dashboard registries.' });
+    res.status(500).json({ success: false, message: 'Failed to retrieve cloud stored registries.' });
   }
 });
 
-// --- 3. DELETE/MANAGE COURSE OPERATION ROUTE ---
+// --- DELETE/MANAGE COURSE OPERATION ROUTE ---
 app.delete('/api/courses/:id', authorizeSessionToken, async (req, res) => {
   try {
-    const courseTargetId = req.params.id;
-    console.log(`🗑️ [DB_MUTATION]: Deleting record parameters tracking index token reference: ${courseTargetId}`);
-    
-    const operationalResult = await Course.findOneAndDelete({ _id: courseTargetId, userId: req.user.userId });
-    if (!operationalResult) {
-      return res.status(404).json({ success: false, message: 'Target roadmap document not found or security mapping signature violation.' });
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(400).json({ success: false, message: 'Database layer is offline.' });
     }
-    
-    res.status(200).json({ success: true, message: 'Roadmap node memory safely cleared from collection.' });
+    const result = await Course.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
+    if (!result) return res.status(404).json({ success: false, message: 'Document not found.' });
+    res.status(200).json({ success: true, message: 'Roadmap node cleared successfully.' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Database query execution crashed during deletion operation.' });
+    res.status(500).json({ success: false, message: 'Database deletion query crashed.' });
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 [SERVER PERSISTED_CORE ONLINE]: Running safely on node port: ${PORT}`));
+// Strictly binding on '0.0.0.0' interface so other computers on local network can connect easily
+app.listen(PORT, '0.0.0.0', () => {
+  console.log("-----------------------------------------------------------------");
+  console.log(`🚀 [SERVER ONLINE]: LuminaLearn Backend is fully serving on port: ${PORT}`);
+  console.log("-----------------------------------------------------------------");
+});
