@@ -1,457 +1,286 @@
 import React, { useState, useEffect } from 'react';
+import './AICourseIntake.css';
 
-function AICourseIntake({ onGenerationComplete }) {
+function AICourseIntake() {
   const [inputPrompt, setInputPrompt] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('Beginner');
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorLogs, setErrorLogs] = useState(null);
   
-  const [generationProgress, setGenerationProgress] = useState(0);
-  const [currentStageMessage, setCurrentStageMessage] = useState('System Idle');
-  const [systemLogs, setSystemLogs] = useState([
-    "LOG_STAMP: [OK] Security Token interceptors initialized.",
-    "STATUS: API endpoint listener ready at http://localhost:5000"
-  ]);
-
-  const pushLogLine = (message) => {
-    setSystemLogs((prev) => [...prev, `LOG_STAMP: ${message}`]);
-  };
+  const [savedCoursesList, setSavedCoursesList] = useState([]);
+  const [activeViewportCourse, setActiveViewportCourse] = useState(null);
+  const [currentActiveDashboardTab, setCurrentActiveDashboardTab] = useState('generate'); 
 
   useEffect(() => {
-    let progressInterval;
-    if (isGenerating) {
-      setGenerationProgress(0);
-      progressInterval = setInterval(() => {
-        setGenerationProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90; // Hold at 90% securely until backend engine resolves and registers to MongoDB
-          }
-          return prev + Math.floor(Math.random() * 5) + 3;
-        });
-      }, 300);
-    }
-    return () => clearInterval(progressInterval);
-  }, [isGenerating]);
+    fetchSavedCoursesFromDatabase();
+  }, []);
 
-  const handleSubmit = async (e) => { 
+  const fetchSavedCoursesFromDatabase = async () => {
+    try {
+      const activeSessionToken = localStorage.getItem('token');
+      if (!activeSessionToken) return;
+
+      const response = await fetch('/api/courses', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${activeSessionToken}` }
+      });
+      const dataPayload = await response.json();
+      if (response.ok && dataPayload.success) {
+        setSavedCoursesList(dataPayload.data);
+      }
+    } catch (err) {
+      console.error("Historical cluster syncing error:", err);
+    }
+  };
+
+  const handleGenerateSubmit = async (e) => {
     e.preventDefault();
     if (!inputPrompt.trim() || isGenerating) return;
 
     setIsGenerating(true);
     setErrorLogs(null);
-    setCurrentStageMessage('Connecting to LuminaLearn AI Pipeline...');
-    pushLogLine(`[INITIALIZE] Formulating custom prompt requirements for: "${inputPrompt}"`);
 
     try {
-      let activeSessionToken = localStorage.getItem('token'); 
-      
-      // Auto-Guest Authentication Fallback if session token is missing
-      if (!activeSessionToken) {
-        pushLogLine("[AUTH] Session token absent. Generating auto-guest credentials background thread...");
-        try {
-          const guestId = Math.floor(100000 + Math.random() * 900000);
-          const guestEmail = `guest_${guestId}@luminalearn.com`;
-          const guestPassword = "GuestPassword123!";
-          
-          // Step A: Register Guest Profile on Backend
-          const regRes = await fetch('http://localhost:5000/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fullName: `Guest Student ${guestId}`,
-              email: guestEmail,
-              password: guestPassword,
-              role: "Student",
-              domain: "Programming",
-              commitment: "1 Hour",
-              experience: "Beginner",
-              learningStyle: "Videos"
-            })
-          });
+      const activeSessionToken = localStorage.getItem('token');
+      if (!activeSessionToken) throw new Error("Authorization missing. Re-login to setup session identifier context tokens.");
 
-          // Step B: Automatically Login to fetch valid JWT Token
-          if (regRes.ok) {
-            const loginRes = await fetch('http://localhost:5000/api/auth/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: guestEmail, password: guestPassword })
-            });
-
-            const loginPayload = await loginRes.json();
-            if (loginRes.ok && loginPayload.success && loginPayload.token) {
-              activeSessionToken = loginPayload.token;
-              localStorage.setItem('token', loginPayload.token);
-              localStorage.setItem('user', JSON.stringify(loginPayload.user));
-              pushLogLine("[AUTH] Guest Session authenticated successfully.");
-            }
-          }
-        } catch (authErr) {
-          console.error("Auto-guest authentication sequence failed:", authErr);
-        }
-      }
-
-      // Re-verify authorization parameters
-      if (!activeSessionToken) {
-        throw new Error("Authorization missing. Please log out and check your account nodes configuration.");
-      }
-
-      setCurrentStageMessage('Gemini Architecture rendering course roadmap structure...');
-      pushLogLine("[AI_CALL] Transmitting parameters token to backend microservice engine.");
-
-      // CORRECT SYNCHRONIZATION ROUTE: Dispatch request to unified generation endpoint
-      const response = await fetch('http://localhost:5000/api/courses/generate', {
+      const response = await fetch('/api/courses/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${activeSessionToken}`
         },
-        body: JSON.stringify({
-          prompt: inputPrompt,
-          level: selectedLevel
-        })
+        body: JSON.stringify({ prompt: inputPrompt, level: selectedLevel })
       });
 
-      const serverPayloadJson = await response.json();
+      const serverPayload = await response.json();
+      if (!response.ok || !serverPayload.success) throw new Error(serverPayload.error || "Generation error exceptions loop trace.");
 
-      if (!response.ok || !serverPayloadJson.success) {
-        const failureReason = serverPayloadJson.error || serverPayloadJson.message || "Failed to compile roadmap fields.";
-        throw new Error(failureReason);
-      }
-
-      console.log("[FRONTEND_INTAKE] MongoDB Database commit verified successfully:", serverPayloadJson.data);
-      
-      // SUCCESS ANIMATION TRANSITION: Jump directly from 90% straight up to 100%
-      setGenerationProgress(100);
-      setCurrentStageMessage('Syllabus structural nodes mapped. Synchronizing learning states...');
-      pushLogLine("[SUCCESS] Course saved and committed to LuminaLearn data blocks.");
-
-      setTimeout(() => {
-        setIsGenerating(false);
-        if (typeof onGenerationComplete === 'function') {
-          onGenerationComplete(serverPayloadJson.data);
-        }
-      }, 700);
-
-    } catch (err) {
-      console.error("[FRONTEND_INTAKE_ERROR]", err);
-      setErrorLogs(err.message || "Failed to process pipeline.");
-      pushLogLine(`[CRITICAL_FAILURE] Generation aborted: ${err.message}`);
+      setActiveViewportCourse(serverPayload.data);
+      fetchSavedCoursesFromDatabase(); 
       setIsGenerating(false);
+    } catch (err) {
+      setErrorLogs(err.message || "Failed to establish communication layers handshake.");
+      setIsGenerating(false);
+    }
+  };
+
+  const handleCourseDeletionNode = async (courseId, e) => {
+    e.stopPropagation(); 
+    if (!window.confirm("Are you sure you want to delete this roadmap node from memory?")) return;
+
+    try {
+      const activeSessionToken = localStorage.getItem('token');
+      const response = await fetch(`/api/courses/${courseId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${activeSessionToken}` }
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        if (activeViewportCourse?._id === courseId) setActiveViewportCourse(null);
+        fetchSavedCoursesFromDatabase();
+      }
+    } catch (err) {
+      alert("Failed to clear course data element payload from database collection server.");
     }
   };
 
   return (
     <div className="centralized-prompt-matrix-viewport">
-      <style>{`
-        .centralized-prompt-matrix-viewport {
-          position: relative;
-          width: 100%;
-          min-height: 100vh;
-          background: #09090b;
-          color: #f4f4f5;
-          padding: 2.5rem;
-          display: flex;
-          flex-direction: column;
-          gap: 2rem;
-          overflow-x: hidden;
-        }
+      <div className="cyber-ambient-grid-underlay"></div>
 
-        .intake-workspace-asymmetric-grid {
-          display: grid;
-          grid-template-columns: 280px 1fr;
-          gap: 2rem;
-          z-index: 2;
-        }
+      {/* DASHBOARD NAVIGATION PANEL */}
+      <div style={{ position: 'relative', zIndex: 10, display: 'flex', gap: '1rem', width: '100%', maxWidth: '76rem', margin: '0 auto 2rem auto', borderBottom: '1px solid #1e293b', paddingBottom: '1rem' }}>
+        <button 
+          onClick={() => { setCurrentActiveDashboardTab('generate'); setActiveViewportCourse(null); }} 
+          className={`pill-selector-item ${currentActiveDashboardTab === 'generate' ? 'is-active' : ''}`}
+        >
+          ✨ Generate Course Path
+        </button>
+        <button 
+          onClick={() => setCurrentActiveDashboardTab('manage')} 
+          className={`pill-selector-item ${currentActiveDashboardTab === 'manage' ? 'is-active' : ''}`}
+        >
+          📂 Manage Courses ({savedCoursesList.length})
+        </button>
+      </div>
 
-        @media (max-width: 900px) {
-          .intake-workspace-asymmetric-grid {
-            grid-template-columns: 1fr;
-          }
-        }
+      {/* INPUT PROMPT VIEWPORT */}
+      {currentActiveDashboardTab === 'generate' && !activeViewportCourse && (
+        <div className="roadmap-master-scaffold-container max-w-xl">
+          <form onSubmit={handleGenerateSubmit} className="interactive-glass-card">
+            <h2 className="gradient-heading-text" style={{ fontSize: '1.8rem', marginBottom: '1.5rem' }}>AI Intelligent Syllabus Architect</h2>
+            
+            {errorLogs && (
+              <div style={{ color: '#f87171', background: 'rgba(248,113,113,0.1)', padding: '12px', border: '1px solid rgba(248,113,113,0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', marginBottom: '1rem' }}>
+                {errorLogs}
+              </div>
+            )}
 
-        .central-workspace-card {
-          background: rgba(18, 18, 22, 0.6);
-          border: 1px solid rgba(139, 92, 246, 0.1);
-          border-radius: 12px;
-          padding: 1.5rem;
-          backdrop-filter: blur(12px);
-          display: flex;
-          flex-direction: column;
-        }
-
-        .telemetry-monitoring-sidebar-card {
-          gap: 1.25rem;
-        }
-
-        .telemetry-stat-mini-mesh-stack {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .telemetry-stat-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.85rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-          padding-bottom: 0.5rem;
-        }
-
-        .lbl-stat {
-          color: #71717a;
-        }
-
-        .val-stat {
-          font-weight: 600;
-          color: #f4f4f5;
-        }
-
-        .cyber-bounding-decorative-progress-track {
-          width: 100%;
-          height: 6px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 9999px;
-          overflow: hidden;
-          margin-top: 0.5rem;
-        }
-
-        .cyber-progress-indicator-bar-fill {
-          height: 100%;
-          background: linear-gradient(90deg, #8b5cf6, #ec4899);
-          transition: width 0.3s ease-out;
-          box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
-        }
-
-        .live-telemetry-percentage-sub-text {
-          font-size: 0.75rem;
-          color: #a1a1aa;
-          font-family: monospace;
-          text-align: center;
-          margin-top: 0.25rem;
-        }
-
-        .prompt-matrix-form-card {
-          background: rgba(18, 18, 22, 0.6);
-          border: 1px solid rgba(139, 92, 246, 0.1);
-          border-radius: 12px;
-          padding: 2rem;
-          backdrop-filter: blur(12px);
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-          z-index: 2;
-        }
-
-        .form-input-wrapper-node {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .input-field-terminal-label {
-          font-size: 0.85rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #a78bfa;
-        }
-
-        .input-textarea-glow-container {
-          position: relative;
-          width: 100%;
-        }
-
-        .input-textarea-glow-container textarea {
-          width: 100%;
-          min-height: 120px;
-          background: rgba(9, 9, 11, 0.8);
-          border: 1px solid rgba(139, 92, 246, 0.2);
-          border-radius: 8px;
-          padding: 1rem;
-          color: #f4f4f5;
-          font-size: 0.95rem;
-          line-height: 1.5;
-          resize: vertical;
-          outline: none;
-          transition: all 0.25s ease;
-        }
-
-        .input-textarea-glow-container textarea:focus {
-          border-color: #8b5cf6;
-          box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
-        }
-
-        .prompt-parameter-toggles-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 1.5rem;
-        }
-
-        .parameter-toggle-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-
-        .parameter-label {
-          font-size: 0.8rem;
-          color: #a1a1aa;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .pill-selector-mesh {
-          display: flex;
-          gap: 0.5rem;
-          background: rgba(9, 9, 11, 0.5);
-          padding: 4px;
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .pill-selector-item {
-          background: transparent;
-          border: none;
-          padding: 6px 12px;
-          border-radius: 6px;
-          color: #71717a;
-          font-size: 0.85rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .pill-selector-item:hover {
-          color: #f4f4f5;
-        }
-
-        .pill-selector-item.is-active {
-          background: #8b5cf6;
-          color: #ffffff;
-          box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
-        }
-
-        .prompt-submit-action-row {
-          margin-top: 1rem;
-        }
-
-        .prompt-matrix-submit-btn {
-          width: 100%;
-          background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-          border: none;
-          color: #ffffff;
-          padding: 1rem;
-          border-radius: 8px;
-          font-size: 1rem;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.25s ease;
-          box-shadow: 0 4px 15px rgba(139, 92, 246, 0.25);
-        }
-
-        .prompt-matrix-submit-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
-        }
-
-        .prompt-matrix-submit-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          background: #27272a;
-          box-shadow: none;
-          color: #71717a;
-        }
-
-        .system-terminal-activity-logs-footer {
-          margin-top: auto;
-          background: rgba(9, 9, 11, 0.9);
-          border: 1px solid rgba(139, 92, 246, 0.1);
-          border-radius: 8px;
-          padding: 1rem;
-          max-height: 120px;
-          overflow-y: auto;
-        }
-      `}</style>
-
-      <div className="intake-workspace-asymmetric-grid">
-        {/* MONITOR LOG PANELS */}
-        <div className="central-workspace-card telemetry-monitoring-sidebar-card">
-          <h3 className="text-xs uppercase tracking-wider font-bold text-white mb-4">Core Monitor</h3>
-          <div className="telemetry-stat-mini-mesh-stack">
-            <div className="telemetry-stat-row">
-              <span className="lbl-stat">DB Commit:</span>
-              <span className="val-stat">{isGenerating ? 'WRITING...' : 'SYNC_OK'}</span>
-            </div>
-            <div className="telemetry-stat-row">
-              <span className="lbl-stat">Progress:</span>
-              <span className="val-stat text-purple font-mono">{generationProgress}%</span>
-            </div>
-          </div>
-          <div className="cyber-bounding-decorative-progress-track">
-            <div className="cyber-progress-indicator-bar-fill" style={{ width: `${generationProgress}%` }}></div>
-          </div>
-          <div className="live-telemetry-percentage-sub-text"><span>{currentStageMessage}</span></div>
-        </div>
-
-        {/* INPUT PROMPT LAYOUT FORM */}
-        <form onSubmit={handleSubmit} className="prompt-matrix-form-card">
-          {errorLogs && (
-            <div style={{ color: '#ef4444', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', padding: '12px', borderRadius: '8px', fontSize: '13px', marginBottom: '14px' }}>
-              <strong>Handshake Fault:</strong> {errorLogs}
-            </div>
-          )}
-
-          <div className="form-input-wrapper-node">
-            <label className="input-field-terminal-label">Input Core Request Instructions</label>
-            <div className="input-textarea-glow-container">
+            <div className="form-input-wrapper-node" style={{ marginBottom: '1.5rem' }}>
+              <label className="input-field-terminal-label">Technology, Topic, or Activity Subject</label>
               <textarea
                 value={inputPrompt}
                 onChange={(e) => setInputPrompt(e.target.value)}
-                placeholder="Example: Complete roadmap for Angular from scratch..."
+                placeholder="Example: Full Java Stack development OR Professional Football Defense tactics and postures..."
                 required
                 disabled={isGenerating}
               />
             </div>
-          </div>
 
-          <div className="prompt-parameter-toggles-row">
-            <div className="parameter-toggle-group">
-              <span className="parameter-label">Target Depth:</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="pill-selector-mesh">
-                {['Beginner', 'Intermediate', 'Advanced'].map((level) => (
+                {['Beginner', 'Intermediate', 'Advanced'].map((lvl) => (
                   <button
-                    key={level}
+                    key={lvl}
                     type="button"
-                    className={`pill-selector-item ${selectedLevel === level ? 'is-active' : ''}`}
-                    onClick={() => !isGenerating && setSelectedLevel(level)}
+                    className={`pill-selector-item ${selectedLevel === lvl ? 'is-active' : ''}`}
+                    onClick={() => !isGenerating && setSelectedLevel(lvl)}
                   >
-                    {level}
+                    {lvl}
                   </button>
                 ))}
               </div>
+              <button type="submit" className="prompt-matrix-submit-btn" disabled={isGenerating}>
+                {isGenerating ? 'Analyzing Domain...' : 'Generate and Commit to DB'}
+              </button>
             </div>
-          </div>
-
-          <div className="prompt-submit-action-row">
-            <button type="submit" className="prompt-matrix-submit-btn" disabled={isGenerating}>
-              {isGenerating ? `Processing Content [${generationProgress}%]` : 'Generate & Commit to DB'}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* FOOTER TERMINAL STREAM FEEDS */}
-      <div className="central-workspace-card system-terminal-activity-logs-footer">
-        <div className="logs-feed-streaming-mesh">
-          {systemLogs.map((logStr, idx) => (
-            <div key={idx} style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>
-              <span style={{ color: '#8B5CF6' }}>&rarr;</span> {logStr}
-            </div>
-          ))}
+          </form>
         </div>
-      </div>
+      )}
 
+      {/* REPOSITORY LIST tab VIEWPORT */}
+      {currentActiveDashboardTab === 'manage' && !activeViewportCourse && (
+        <div className="roadmap-master-scaffold-container max-w-4xl w-full">
+          <div className="interactive-glass-card">
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem', color: '#fff' }}>Saved Roadmap Repository Logs</h2>
+            {savedCoursesList.length === 0 ? (
+              <p style={{ color: '#64748b', fontSize: '0.9rem' }}>No persistent structures recorded inside your cloud workspace profile nodes index. Go generate a path first!</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {savedCoursesList.map((course) => (
+                  <div 
+                    key={course._id} 
+                    onClick={() => setActiveViewportCourse(course)}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem', background: 'rgba(15,23,42,0.6)', border: '1px solid #1e293b', borderRadius: '0.75rem', cursor: 'pointer', transition: 'border-color 0.2s' }}
+                    className="hover:border-cyan-500/40"
+                  >
+                    <div>
+                      <h4 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{course.title}</h4>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Domain Class: {course.contentType} | Tracks: {course.modules.length} Modules</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', background: '#1e1b4b', border: '1px solid #312e81', color: '#a78bfa', padding: '0.25rem 0.5rem', borderRadius: '0.35rem', fontWeight: 'bold' }}>{course.level}</span>
+                      <button 
+                        onClick={(e) => handleCourseDeletionNode(course._id, e)}
+                        className="pill-selector-item" 
+                        style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.2)', background: 'rgba(248,113,113,0.05)', fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* FULL ROADMAP CONTAINER TIMELINE VIEWPORT */}
+      {activeViewportCourse && (
+        <div className="roadmap-master-scaffold-container animate-fadeIn">
+          <div className="interactive-glass-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#06b6d4', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Cloud Storage Engine Registry Identity Verified [Sync_OK]
+                </span>
+                <h1 style={{ fontSize: '2.2rem', fontWeight: 900, color: '#fff', margin: '0.2rem 0 0 0' }}>{activeViewportCourse.title}</h1>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem' }}>
+                <span style={{ background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#06b6d4' }}>
+                  Depth: {activeViewportCourse.level}
+                </span>
+                <span style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#8b5cf6' }}>
+                  Timeframe: {activeViewportCourse.estimatedTime}
+                </span>
+                <button onClick={() => { setActiveViewportCourse(null); if (currentActiveDashboardTab === 'generate') setCurrentActiveDashboardTab('manage'); }} className="pill-selector-item" style={{ color: '#fff', borderColor: '#374151' }}>Back to Grid</button>
+              </div>
+            </div>
+
+            <div className="module-timeline-wrapper-node">
+              {activeViewportCourse.modules.map((moduleItem, idx) => (
+                <div key={moduleItem.moduleId || idx} className="module-timeline-node-card">
+                  <div className="timeline-bullet-counter">{idx + 1}</div>
+                  
+                  <div className="node-card-inner-box">
+                    <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#fff', margin: '0 0 0.5rem 0' }}>{moduleItem.moduleName}</h2>
+                    <p style={{ fontSize: '0.9rem', color: '#9ca3af', lineHeight: '1.6', margin: '0 0 1.25rem 0' }}>{moduleItem.shortSummary}</p>
+
+                    {/* DYNAMIC VISUAL GUIDELINES RENDER LOCK */}
+                    {activeViewportCourse.contentType === "Non-Technical" && moduleItem.visualGuidelines && (
+                      <div style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.15)', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.25rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#06b6d4', display: 'block', textTransform: 'uppercase', marginBottom: '0.25rem' }}>🖼️ AI Visual Blueprint / Performance Posture Map:</span>
+                        <p style={{ fontSize: '0.85rem', color: '#e2e8f0', margin: 0, fontStyle: 'italic' }}>{moduleItem.visualGuidelines}</p>
+                      </div>
+                    )}
+
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <span className="lbl-stat" style={{ color: '#94a3b8', display: 'block', marginBottom: '0.5rem' }}>Target Topic Parameters:</span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {moduleItem.topics.map((topic, tIdx) => (
+                          <span key={tIdx} style={{ fontSize: '0.75rem', background: '#0f172a', border: '1px solid #1e293b', padding: '0.35rem 0.75rem', borderRadius: '0.35rem', color: '#cbd5e1', fontWeight: 600 }}>
+                            {topic}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="meta-packages-asymmetric-row">
+                      
+                      {/* QUIZ CARD */}
+                      <div className="package-pill-box">
+                        <div className="pill-type-header quiz-theme">⚡ Scheduled Quiz Evaluation</div>
+                        <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#fff' }}>{moduleItem.quiz.name}</h4>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace', marginTop: '0.5rem' }}>
+                          <div>Total Questions: {moduleItem.quiz.totalQuestions} items</div>
+                          <div>Duration: {moduleItem.quiz.timeLimitMins} Mins</div>
+                        </div>
+                      </div>
+
+                      {/* ASSIGNMENT CARD */}
+                      <div className="package-pill-box">
+                        <div className="pill-type-header assignment-theme">🛠️ Core Module Assignment</div>
+                        <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#fff' }}>{moduleItem.assignment.name}</h4>
+                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0.25rem 0 0 0' }}>{moduleItem.assignment.objective}</p>
+                        <span style={{ display: 'inline-block', fontSize: '0.65rem', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', color: '#fbbf24', fontWeight: 'bold', marginTop: '0.5rem' }}>
+                          Complexity: {moduleItem.assignment.complexity}
+                        </span>
+                      </div>
+
+                      {/* YOUTUBE VIDEO STREAM CARD */}
+                      <div className="package-pill-box">
+                        <div className="pill-type-header youtube-theme">📺 Curated Stream Platform</div>
+                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0 0 0.5rem 0' }}>Relevant video tracking queries for live session validation study:</p>
+                        <a 
+                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(moduleItem.youtubeSearchQuery)}`}
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="youtube-search-embed-link"
+                        >
+                          Launch Reference Tutorial Video
+                        </a>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
