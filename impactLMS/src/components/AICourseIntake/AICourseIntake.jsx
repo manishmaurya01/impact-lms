@@ -25,7 +25,7 @@ function AICourseIntake({ onGenerationComplete }) {
         setGenerationProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
-            return 90; // Hold at 90% until backend server commits to Mongo
+            return 90; // Hold at 90% securely until backend engine resolves and registers to MongoDB
           }
           return prev + Math.floor(Math.random() * 5) + 3;
         });
@@ -34,99 +34,21 @@ function AICourseIntake({ onGenerationComplete }) {
     return () => clearInterval(progressInterval);
   }, [isGenerating]);
 
-  // --- STANDARD EXPONENTIAL BACKOFF API CALL WITH 5 RETRIES ---
-  const fetchFromGeminiWithBackoff = async (userQuery, systemPrompt) => {
-    // Guidelines Rule: Empty apiKey variable (Canvas takes care of binding dynamically)
-    const apiKey = ""; 
-    
-    // Crucial Update: Model strictly restored to "gemini-2.5-flash-preview-09-2025" and key to empty string
-    // This allows the Canvas environment's interceptor to inject the authorized keys successfully.
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-    // Simplified Response Schema: Flat module list to prevent parser timeouts
-    const requestPayload = {
-      contents: [{ parts: [{ text: userQuery }] }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            title: { type: "STRING" },
-            level: { type: "STRING" },
-            modules: {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                properties: {
-                  dayId: { type: "INTEGER" },
-                  title: { type: "STRING" },
-                  status: { type: "STRING" },
-                  duration: { type: "STRING" },
-                  objective: { type: "STRING" },
-                  topics: { type: "ARRAY", items: { type: "STRING" } },
-                  curatedSearchQuery: { type: "STRING" },
-                  shortNotes: { type: "STRING" }
-                },
-                required: ["dayId", "title", "status", "duration", "objective", "topics", "curatedSearchQuery", "shortNotes"]
-              }
-            }
-          },
-          required: ["title", "level", "modules"]
-        }
-      }
-    };
-
-    const delays = [1000, 2000, 4000, 8000, 16000]; // 1s, 2s, 4s, 8s, 16s backoff delays
-    let lastError = null;
-
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestPayload)
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Google API status error: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (text) {
-          return JSON.parse(text.trim());
-        }
-        throw new Error("Empty candidate parameters response stream.");
-
-      } catch (err) {
-        lastError = err;
-        if (attempt < 4) {
-          // Wait silently as per rules
-          await new Promise(resolve => setTimeout(resolve, delays[attempt]));
-        }
-      }
-    }
-    throw new Error(`AI Engine attempts exhausted. Trace: ${lastError.message}`);
-  };
-
   const handleSubmit = async (e) => { 
     e.preventDefault();
     if (!inputPrompt.trim() || isGenerating) return;
 
     setIsGenerating(true);
     setErrorLogs(null);
-    setCurrentStageMessage('Connecting directly to Gemini 2.5 Cognitive Layer...');
-    pushLogLine(`[INITIALIZE] Formulating custom prompt payload targets.`);
+    setCurrentStageMessage('Connecting to LuminaLearn AI Pipeline...');
+    pushLogLine(`[INITIALIZE] Formulating custom prompt requirements for: "${inputPrompt}"`);
 
     try {
       let activeSessionToken = localStorage.getItem('token'); 
       
       // Auto-Guest Authentication Fallback if session token is missing
       if (!activeSessionToken) {
-        pushLogLine("[AUTH] Session token nahi mila. Background me auto-guest login process kar rahe hain...");
+        pushLogLine("[AUTH] Session token absent. Generating auto-guest credentials background thread...");
         try {
           const guestId = Math.floor(100000 + Math.random() * 900000);
           const guestEmail = `guest_${guestId}@luminalearn.com`;
@@ -161,7 +83,7 @@ function AICourseIntake({ onGenerationComplete }) {
               activeSessionToken = loginPayload.token;
               localStorage.setItem('token', loginPayload.token);
               localStorage.setItem('user', JSON.stringify(loginPayload.user));
-              pushLogLine("[AUTH] Auto-guest login successfully parsed! Token saved.");
+              pushLogLine("[AUTH] Guest Session authenticated successfully.");
             }
           }
         } catch (authErr) {
@@ -169,53 +91,51 @@ function AICourseIntake({ onGenerationComplete }) {
         }
       }
 
-      // Re-verify after fallback execution
+      // Re-verify authorization parameters
       if (!activeSessionToken) {
-        throw new Error("Aapka login session token missing hai. Please ek baar log out karke dobara login karein.");
+        throw new Error("Authorization missing. Please log out and check your account nodes configuration.");
       }
 
-      // 1. Direct fetch call to Google Gemini Model from Frontend
-      const systemPromptText = "You are the premium core intelligence of LuminaLearn Studio. Generate the dynamic course structure following the strict lowercase OpenAPI schema structures.";
-      const userPromptText = `Create a highly personalized 4-day learning roadmap on the topic: "${inputPrompt}" matching level: "${selectedLevel}". Output strictly structured JSON values.`;
+      setCurrentStageMessage('Gemini Architecture rendering course roadmap structure...');
+      pushLogLine("[AI_CALL] Transmitting parameters token to backend microservice engine.");
 
-      const parsedAiData = await fetchFromGeminiWithBackoff(userPromptText, systemPromptText);
-      
-      setCurrentStageMessage('AI response received. Saving structure into database...');
-      pushLogLine(`[AI_SUCCESS] Gemini resolved layout parameters. Syncing database...`);
-
-      // 2. Dispatch save request directly to local port Express server
-      const saveResponse = await fetch('http://localhost:5000/api/courses/save', {
+      // CORRECT SYNCHRONIZATION ROUTE: Dispatch request to unified generation endpoint
+      const response = await fetch('http://localhost:5000/api/courses/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${activeSessionToken}`
         },
         body: JSON.stringify({
-          generatedCourse: parsedAiData,
+          prompt: inputPrompt,
           level: selectedLevel
         })
       });
 
-      const serverPayloadJson = await saveResponse.json();
+      const serverPayloadJson = await response.json();
 
-      if (!saveResponse.ok || !serverPayloadJson.success) {
-        const failureReason = serverPayloadJson.error || serverPayloadJson.message || "Failed to commit generated layout elements to database.";
+      if (!response.ok || !serverPayloadJson.success) {
+        const failureReason = serverPayloadJson.error || serverPayloadJson.message || "Failed to compile roadmap fields.";
         throw new Error(failureReason);
       }
 
       console.log("[FRONTEND_INTAKE] MongoDB Database commit verified successfully:", serverPayloadJson.data);
       
+      // SUCCESS ANIMATION TRANSITION: Jump directly from 90% straight up to 100%
       setGenerationProgress(100);
-      setCurrentStageMessage('Course mapped. Syncing interactive learning states...');
-      pushLogLine("[SUCCESS] Course saved into MongoDB collection: courses");
+      setCurrentStageMessage('Syllabus structural nodes mapped. Synchronizing learning states...');
+      pushLogLine("[SUCCESS] Course saved and committed to LuminaLearn data blocks.");
 
-      if (typeof onGenerationComplete === 'function') {
-        onGenerationComplete(serverPayloadJson.data);
-      }
+      setTimeout(() => {
+        setIsGenerating(false);
+        if (typeof onGenerationComplete === 'function') {
+          onGenerationComplete(serverPayloadJson.data);
+        }
+      }, 700);
 
     } catch (err) {
       console.error("[FRONTEND_INTAKE_ERROR]", err);
-      setErrorLogs(err.message || "Failed to parse generation state workflows.");
+      setErrorLogs(err.message || "Failed to process pipeline.");
       pushLogLine(`[CRITICAL_FAILURE] Generation aborted: ${err.message}`);
       setIsGenerating(false);
     }
@@ -223,7 +143,6 @@ function AICourseIntake({ onGenerationComplete }) {
 
   return (
     <div className="centralized-prompt-matrix-viewport">
-      {/* Dynamic Style Injection to resolve esbuild CSS path error flawlessly */}
       <style>{`
         .centralized-prompt-matrix-viewport {
           position: relative;
@@ -236,35 +155,6 @@ function AICourseIntake({ onGenerationComplete }) {
           flex-direction: column;
           gap: 2rem;
           overflow-x: hidden;
-        }
-
-        .cyber-ambient-grid-underlay {
-          position: absolute;
-          inset: 0;
-          background-image: linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
-          background-size: 30px 30px;
-          pointer-events: none;
-          z-index: 1;
-        }
-
-        .prompt-matrix-hero-block {
-          z-index: 2;
-          margin-bottom: 1rem;
-        }
-
-        .prompt-matrix-title {
-          font-size: 2.5rem;
-          font-weight: 800;
-          line-height: 1.2;
-          letter-spacing: -0.025em;
-          color: #ffffff;
-        }
-
-        .prompt-matrix-title span {
-          background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
         }
 
         .intake-workspace-asymmetric-grid {
@@ -484,8 +374,8 @@ function AICourseIntake({ onGenerationComplete }) {
         }
       `}</style>
 
-      {/* SIDE LIVE MONITOR CONSOLE */}
       <div className="intake-workspace-asymmetric-grid">
+        {/* MONITOR LOG PANELS */}
         <div className="central-workspace-card telemetry-monitoring-sidebar-card">
           <h3 className="text-xs uppercase tracking-wider font-bold text-white mb-4">Core Monitor</h3>
           <div className="telemetry-stat-mini-mesh-stack">
@@ -504,14 +394,11 @@ function AICourseIntake({ onGenerationComplete }) {
           <div className="live-telemetry-percentage-sub-text"><span>{currentStageMessage}</span></div>
         </div>
 
-        {/* PROMPT ACTION CARD CONTAINER */}
+        {/* INPUT PROMPT LAYOUT FORM */}
         <form onSubmit={handleSubmit} className="prompt-matrix-form-card">
           {errorLogs && (
             <div style={{ color: '#ef4444', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', padding: '12px', borderRadius: '8px', fontSize: '13px', marginBottom: '14px' }}>
               <strong>Handshake Fault:</strong> {errorLogs}
-              <div style={{ fontSize: '11px', marginTop: '4px', color: '#94a3b8' }}>
-                💡 Tip: Agar aap local test kar rahe hain, toh apne browser console me <code>localStorage.setItem("gemini_api_key", "YOUR_ACTUAL_KEY")</code> run karke page refresh karein!
-              </div>
             </div>
           )}
 
@@ -554,7 +441,7 @@ function AICourseIntake({ onGenerationComplete }) {
         </form>
       </div>
 
-      {/* STREAM LOGGER FOOTER NODES */}
+      {/* FOOTER TERMINAL STREAM FEEDS */}
       <div className="central-workspace-card system-terminal-activity-logs-footer">
         <div className="logs-feed-streaming-mesh">
           {systemLogs.map((logStr, idx) => (

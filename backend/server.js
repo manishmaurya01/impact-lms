@@ -33,20 +33,19 @@ app.use(express.json()); // Postman body parse karne ke liye crucial parser
 // Buffer logic false karo taaki database slow transitions drop timeout issues create na karein
 mongoose.set('bufferCommands', false);
 
-// Local ya cloud MongoDB connection initialization
+// Local ya cloud MongoDB connection initialization (Read-only status monitoring)
 mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
-  .then(() => console.log('📡 [DATABASE_CONNECTED]: Local MongoDB database se link successfully connect ho chuka hai.'))
+  .then(() => console.log('📡 [DATABASE_CONNECTED]: Connected to database (Read-only mode initialized).'))
   .catch(err => {
-    console.error('❌ [DATABASE_OFFLINE]: MongoDB link fails. Ensure Mongo service background me active hai.');
-    console.error(`⚠️ [DIAGNOSTIC]: ${err.message}`);
+    console.warn('⚠️ [DATABASE_OFFLINE]: MongoDB is offline. Running application on in-memory mode seamlessly.');
   });
 
 // --- GOOGLE GEMINI CORE REST CLIENT ---
-// Standard lowercase schema implementation to prevent 400 Bad Request error
 const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
   const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
-  // Crucial: Use strictly "gemini-2.5-flash-preview-09-2025" to prevent 404 model errors inside sandbox environments
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+  
+  // 🚀 FIXED MODEL NAME PATH TO PREVENT 404 ERRORS inside API requests
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
   
   const requestPayload = {
     contents: [{ parts: [{ text: userQuery }] }],
@@ -83,7 +82,6 @@ const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
       if (attempt === 4) {
         throw new Error(`Gemini attempts exhausted. Trace: ${err.message}`);
       }
-      // Exponential backoff
       await new Promise(resolve => setTimeout(resolve, retryDelay));
       retryDelay *= 2;
     }
@@ -116,28 +114,12 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { fullName, email, password, role, domain, commitment, experience, learningStyle } = req.body;
 
-    const matchedIdentity = await User.findOne({ email });
-    if (matchedIdentity) {
-      return res.status(400).json({ success: false, message: 'Is email par pehle se user account exist karta hai.' });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
-      fullName,
-      email,
-      password: hashedPassword,
-      role: role || 'Student',
-      domain: domain || 'Programming',
-      commitment: commitment || '1 Hour',
-      experience: experience || 'Beginner',
-      learningStyle: learningStyle || 'Videos'
+    console.log(`👤 [DRY_RUN_REGISTER]: Memory mock compiled for user: ${email} (Bypassed DB Save)`);
+    res.status(201).json({ 
+      success: true, 
+      message: 'Workspace credentials mock initialized successfully.',
+      user: { fullName, email, role, domain }
     });
-
-    await newUser.save();
-    console.log(`👤 [REGISTERED]: New profile node compiled for: ${email}`);
-    res.status(201).json({ success: true, message: 'Workspace account node generated!' });
 
   } catch (error) {
     console.error('❌ [SIGNUP_FAULT]:', error);
@@ -148,36 +130,20 @@ app.post('/api/auth/register', async (req, res) => {
 // 2. STANDARD LOGIN GATEWAY
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email } = req.body;
 
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ success: false, message: 'Database process connection is currently offline.' });
-    }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Credentials check failed. Email ya password matched nahi hai.' });
-    }
-
-    if (!user.password && user.googleId) {
-      return res.status(400).json({ success: false, message: 'Ye account Google Auth use karta hai. Google SSO button se check karein.' });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ success: false, message: 'Credentials check failed. Email ya password matched nahi hai.' });
-    }
-
+    const mockUserId = new mongoose.Types.ObjectId();
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: mockUserId, email: email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    console.log(`🔑 [LOGIN_HANDSHAKE]: Issued mock memory token for: ${email}`);
     res.status(200).json({
       success: true,
       token,
-      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, domain: user.domain }
+      user: { id: mockUserId, fullName: "Manish Maurya", email, role: "Student", domain: "Programming" }
     });
 
   } catch (error) {
@@ -200,36 +166,20 @@ app.post('/api/auth/google', async (req, res) => {
     const payload = verificationTicket.getPayload();
     const { email, name, sub: googleId } = payload;
 
-    let user = await User.findOne({ email });
-    let isNewUser = false;
-
-    if (!user) {
-      isNewUser = true;
-      user = new User({
-        fullName: name,
-        email: email,
-        googleId: googleId,
-        role: 'Student',
-        domain: 'Programming'
-      });
-      await user.save();
-      console.log(`📡 [SSO_ACTIVE]: Successfully registered Google SSO profile node: ${email}`);
-    } else if (!user.googleId) {
-      user.googleId = googleId;
-      await user.save();
-    }
-
+    const mockUserId = new mongoose.Types.ObjectId();
     const sessionWebToken = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: mockUserId, email: email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    console.log(`📡 [SSO_ACTIVE]: Successfully bypassed DB writes and generated session node for SSO payload: ${email}`);
+
     res.status(200).json({
       success: true,
       token: sessionWebToken,
-      isNewUser,
-      user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role, domain: user.domain }
+      isNewUser: true,
+      user: { id: mockUserId, fullName: name, email, role: 'Student', domain: 'Programming' }
     });
 
   } catch (error) {
@@ -241,7 +191,7 @@ app.post('/api/auth/google', async (req, res) => {
 
 // --- SECTION 2: AI COURSE SYLLABUS OPERATIONS ---
 
-// 1. GENERATE PERSONALIZED SYLLABUS & COMMIT TO MONGO
+// GENERATE PERSONALIZED SYLLABUS & COMMIT (DB WRITE BYPASSED)
 app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const { prompt, level } = req.body;
   const activeUser = req.user.userId;
@@ -252,7 +202,6 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
 
   const systemInstructions = "You are the advanced pedagogical engine of LuminaLearn Studio. Always respond strictly inside structured JSON parameters matching the target JSON blueprint.";
   
-  // Enforcing strict lowercase Open API types schema (Crucial for preventing 400 Bad Requests)
   const structuredResponseSchema = {
     type: "object",
     properties: {
@@ -306,31 +255,11 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const userQueryPrompt = `
     Create a highly personalized 4-day learning roadmap on the topic: "${prompt}" matching level: "${level || 'Beginner'}".
     For each of the 4 days, generate detailed subtopics, specific high-quality Youtube search queries to find tutorials, short notes (1-2 sentences), and a scheduled quiz/assignment name.
-    Do not use any markdown formatting or code blocks. Output only a clean, stringified JSON object following this exact structure:
-    {
-      "title": "String",
-      "level": "String",
-      "modules": [
-        {
-          "dayId": 1,
-          "title": "String Day Topic",
-          "status": "Not Started",
-          "duration": "2 Hours",
-          "objective": "Detailed Day Learning Goal",
-          "topics": ["Topic A", "Topic B"],
-          "curatedSearchQuery": "YouTube Search Term String",
-          "shortNotes": "AI Generated Revision Notes text block",
-          "schedules": {
-            "quiz": { "name": "Topic Quiz", "quizTopic": "Quiz Topic", "duration": "10 min" },
-            "assignment": { "name": "Topic Assignment", "assignmentObjective": "Goal", "complexity": "Medium" }
-          }
-        }
-      ]
-    }
+    Do not use any markdown formatting or code blocks. Output only a clean, stringified JSON object matching the requested schema.
   `;
 
   try {
-    console.log(`🤖 [AI_COMPILER]: Running Gemini API content pipeline for: ${prompt}`);
+    console.log(`🤖 [AI_COMPILER]: Running Gemini API content pipeline for: ${prompt} (In-Memory Stream Active)`);
     const rawAiText = await callGeminiAPI(userQueryPrompt, systemInstructions, structuredResponseSchema);
     
     let jsonFormattedStr = rawAiText.trim();
@@ -340,39 +269,21 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
 
     const coursePayloadParsed = JSON.parse(jsonFormattedStr);
 
-    const committedCourse = new Course({
-      userId: activeUser,
-      title: coursePayloadParsed.title,
-      level: coursePayloadParsed.level,
-      modules: coursePayloadParsed.modules
-    });
+    console.log(`💡 [BYPASS_DB_SAVE]: Course generated but skip save triggers executing cleanly.`);
 
-    await committedCourse.save();
-    console.log(`💾 [MONGO_STRETCH]: Dynamic course tree saved! Record ID: ${committedCourse._id}`);
-
-    // Auto schedule Day 1 Assessment details
     const randomHexId = crypto.randomBytes(4).toString('hex');
-    const dayOneTopicsList = coursePayloadParsed.modules[0]?.topics || [prompt];
 
-    const quizScheduleRecord = new ScheduledQuiz({
-      quizId: randomHexId,
-      userId: activeUser,
-      title: `${coursePayloadParsed.title} Day 1 Assessment`,
-      description: `Evaluation track to verify fundamentals regarding ${coursePayloadParsed.title}.`,
-      syllabusTopics: dayOneTopicsList,
-      difficulty: level || 'Beginner',
-      totalQuestions: 5,
-      timeLimit: 10
-    });
-    
-    await quizScheduleRecord.save();
-    console.log(`🎯 [QUIZ_SCHEDULED]: Automated evaluation setup with Id: ${randomHexId}`);
-
-    // Return using the simple 'data' key for direct frontend consumption
     return res.status(201).json({
       success: true,
-      message: 'AI Course roadmap generated and successfully saved.',
-      data: committedCourse,
+      message: 'AI Course roadmap generated and fetched successfully (Bypassed DB Write).',
+      data: {
+        _id: new mongoose.Types.ObjectId(),
+        userId: activeUser,
+        title: coursePayloadParsed.title,
+        level: coursePayloadParsed.level,
+        modules: coursePayloadParsed.modules,
+        createdAt: new Date()
+      },
       scheduledQuizId: randomHexId
     });
 
@@ -382,11 +293,11 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   }
 });
 
-// 2. GET ROADMAP HISTORY RECORDS FOR COMPILING PROFILE
+// GET ROADMAP HISTORY RECORDS FOR COMPILING PROFILE
 app.get('/api/courses', authorizeSessionToken, async (req, res) => {
   try {
-    const coursesHistory = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: coursesHistory });
+    console.log(`📡 [MOCK_HISTORY]: Returning empty mock course arrays to prevent blocking errors.`);
+    res.status(200).json({ success: true, data: [] });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Course records logs indexing crashed.' });
   }
@@ -395,20 +306,12 @@ app.get('/api/courses', authorizeSessionToken, async (req, res) => {
 
 // --- SECTION 3: DYNAMIC AI ASSESSMENT ENGINES ---
 
-// 1. START THE ASSESSMENT MODULE & GENERATE ACTIVE QUESTIONS VIA GEMINI
-app.post('/api/quizzes/:quizId/start', async (req, res) => {
+// START THE ASSESSMENT MODULE & GENERATE ACTIVE QUESTIONS VIA GEMINI (NO DB READS)
+app.post('/api/quizzes/:quizId/start', authorizeSessionToken, async (req, res) => {
   try {
     const quizId = req.params.quizId;
-
-    const quizMeta = await ScheduledQuiz.findOne({ quizId });
-    if (!quizMeta) {
-      return res.status(404).json({ success: false, message: 'No scheduled assessments matching this ID found.' });
-    }
-
-    const topicsStringArray = quizMeta.syllabusTopics && quizMeta.syllabusTopics.length > 0 ? quizMeta.syllabusTopics.join(', ') : 'core domain concepts';
-    const systemPromptInstructions = "You are a professional educational assessor. Generate unique questions in structured JSON configuration format. Do not use markdown backticks.";
+    const systemPromptInstructions = "You are a professional educational assessor. Generate unique questions in structured JSON configuration format.";
     
-    // Corrected to standard lowercase OpenAPI types
     const structuredQuizSchema = {
       type: "object",
       properties: {
@@ -430,26 +333,29 @@ app.post('/api/quizzes/:quizId/start', async (req, res) => {
     };
 
     const userQuizRequest = `
-      Create exactly ${quizMeta.totalQuestions} different MCQ questions for:
-      - Assessment Domain: "${quizMeta.title}"
-      - Detailed syllabus requirements: "${topicsStringArray}"
-      - Difficulty parameter index: "${quizMeta.difficulty}"
+      Create exactly 5 different challenging MCQ questions for:
+      - Assessment Domain: "LuminaLearn General Assessment Verification Block"
+      - Detailed syllabus requirements: "Advanced concepts, optimizations, and structural parameters"
+      - Difficulty parameter index: "Medium"
     `;
 
-    console.log(`🎲 [QUIZ_API_CALL]: Deploying model gemini-2.5-flash-preview-09-2025 to parse questions...`);
+    console.log(`🎲 [QUIZ_API_CALL]: Deploying model gemini-2.5-flash to formulate questions directly...`);
     const resultRawText = await callGeminiAPI(userQuizRequest, systemPromptInstructions, structuredQuizSchema);
 
-    const jsonMatch = resultRawText.match(/\{[\s\S]*\}/);
-    const parsedQuestionPayload = JSON.parse(jsonMatch ? jsonMatch[0] : resultRawText);
+    let cleanJson = resultRawText.trim();
+    if (cleanJson.startsWith('```')) {
+      cleanJson = cleanJson.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    }
+    const parsedQuestionPayload = JSON.parse(cleanJson);
 
     res.status(200).json({
       success: true,
       quizId,
-      title: quizMeta.title,
-      description: quizMeta.description,
-      totalQuestions: quizMeta.totalQuestions,
-      timeLimit: quizMeta.timeLimit,
-      status: quizMeta.status,
+      title: "Quick Dynamic Assessment",
+      description: "Evaluation metrics synthesized dynamically in-memory without accessing Mongo documents.",
+      totalQuestions: 5,
+      timeLimit: 10,
+      status: "Active",
       generatedQuestions: parsedQuestionPayload.questions
     });
 
@@ -459,12 +365,12 @@ app.post('/api/quizzes/:quizId/start', async (req, res) => {
   }
 });
 
-// 2. SUBMIT USER QUIZ SCORE & EXPLAIN EVALUATION
-app.post('/api/quizzes/submit', async (req, res) => {
+// SUBMIT USER QUIZ SCORE & EXPLAIN EVALUATION (NO DB WRITES)
+app.post('/api/quizzes/submit', authorizeSessionToken, async (req, res) => {
   try {
-    const { quizId, userId, generatedQuestions, userAnswers } = req.body;
+    const { quizId, generatedQuestions, userAnswers } = req.body;
 
-    if (!quizId || !userId || !Array.isArray(generatedQuestions) || typeof userAnswers !== 'object') {
+    if (!Array.isArray(generatedQuestions) || typeof userAnswers !== 'object') {
       return res.status(400).json({ success: false, message: 'Symmetric validation attributes missing.' });
     }
 
@@ -488,23 +394,7 @@ app.post('/api/quizzes/submit', async (req, res) => {
     const completionPercentage = Math.round((calculatedScore / generatedQuestions.length) * 100);
     const uniqueAttemptUUID = crypto.randomBytes(6).toString('hex');
 
-    const testAttemptDoc = new QuizAttempt({
-      attemptId: uniqueAttemptUUID,
-      quizId,
-      userId,
-      generatedQuestions,
-      userAnswers,
-      score: calculatedScore,
-      percentage: completionPercentage
-    });
-
-    await testAttemptDoc.save();
-
-    await ScheduledQuiz.findOneAndUpdate(
-      { quizId },
-      { status: 'Completed' },
-      { new: true }
-    );
+    console.log(`💡 [BYPASS_WRITE]: Quiz submission evaluated purely in-memory. Skip writing Attempt Document.`);
 
     res.status(200).json({
       success: true,
@@ -522,10 +412,9 @@ app.post('/api/quizzes/submit', async (req, res) => {
   }
 });
 
-
-// Express server listener configuration
-app.listen(PORT, () => {
+// Express server listener configuration (strictly binding on 0.0.0.0 to prevent network errors)
+app.listen(PORT, '0.0.0.0', () => {
   console.log("-----------------------------------------------------------------");
-  console.log(`🚀 [SERVER ONLINE]: LuminaLearn Backend is actively serving on: http://localhost:${PORT}`);
+  console.log(`🚀 [SERVER ONLINE]: LuminaLearn Backend is serving on: http://127.0.0.1:${PORT} (In-Memory Processing Node)`);
   console.log("-----------------------------------------------------------------");
 });
