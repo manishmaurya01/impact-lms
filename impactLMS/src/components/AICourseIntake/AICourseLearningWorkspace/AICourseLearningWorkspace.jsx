@@ -8,7 +8,7 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
   const [activeTopicIndex, setActiveTopicIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('video'); 
 
-  // 🚀 ACTUAL SAVED CORE REPOSITORIES 
+  // 🚀 CORE STATE REPOSITORIES
   const [activeMaterial, setActiveMaterial] = useState(null);
   const [isSyncingMaterial, setIsSyncingMaterial] = useState(false);
   const [completedTracks, setCompletedTracks] = useState({ "mod-1-topic-0": true });
@@ -17,14 +17,14 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
   const currentModuleIndex = modulesArray.findIndex(m => m.moduleId === activeModuleId);
   const currentModule = modulesArray[currentModuleIndex] || modulesArray[0];
   
-  // Array parameters map strings as-is layout format
   const currentTopicName = currentModule?.topics?.[activeTopicIndex] || "No Content Available";
 
-  // 🚀 BACKGROUND SYNC HANDLER: Hits Materials Database Realtime on every click
+  // 🚀 BACKGROUND SYNC HANDLER: Hits Dynamic Open Materials Database Realtime
   const loadTopicMaterialOnDemand = async (modId, topicIdx, specificTopicName) => {
     setIsSyncingMaterial(true);
     setActiveModuleId(modId);
     setActiveTopicIndex(topicIdx);
+    setActiveMaterial(null); // Clear previous state to re-trigger layout animations
     
     try {
       const token = localStorage.getItem('token');
@@ -43,7 +43,7 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
 
       const json = await response.json();
       if (json.success && json.data) {
-        // Hydrate active panel from dynamic material collection model
+        // Hydrate active panel from dynamic unconstrained content collection
         setActiveMaterial(json.data);
       }
     } catch (err) {
@@ -55,7 +55,9 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
 
   // Init sequence mapping hook
   useEffect(() => {
-    loadTopicMaterialOnDemand(activeModuleId, activeTopicIndex, currentModule?.topics?.[0] || "");
+    if (modulesArray.length > 0) {
+      loadTopicMaterialOnDemand(activeModuleId, activeTopicIndex, currentModule?.topics?.[0] || "");
+    }
   }, []);
 
   const handleTopicSelection = (modId, topicIdx) => {
@@ -84,7 +86,8 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
       <WorkspaceHeader courseTitle={courseData?.title || "AI Workspace"} onBack={onBack} />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        {/* 🚀 THE NATIVE IMMUTABLE MODULES TREE PRESERVED */}
+        
+        {/* 🚀 IMMUTABLE SIDEBAR TREE */}
         <ModuleSidebarTree 
           modules={modulesArray} 
           activeModuleId={activeModuleId}
@@ -93,19 +96,91 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
           onSelectTopic={handleTopicSelection}
         />
 
+        {/* 🚀 HIGH-FIDELITY GLASSMORPHIC COMPILATION LOADER OVERLAY */}
         {isSyncingMaterial && (
-          <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#070a12', border: '1px solid #06b6d4', color: '#06b6d4', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', zIndex: 99 }}>
-            ⏳ Compiling topic blueprints: definition, advantages & code instances...
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(2, 4, 10, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}>
+            <div style={{
+              width: '400px',
+              background: '#070a12',
+              border: '1px solid rgba(6, 182, 212, 0.25)',
+              padding: '2.5rem 2rem',
+              borderRadius: '1rem',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              textAlign: 'center'
+            }}>
+              {/* Spinning Logo Wheel */}
+              <div style={{
+                margin: '0 auto 1.5rem auto',
+                width: '44px',
+                height: '44px',
+                border: '3px solid rgba(6, 182, 212, 0.1)',
+                borderTop: '3px solid #06b6d4',
+                borderRadius: '50%',
+                animation: 'workspaceCoreSpin 0.85s linear infinite'
+              }} />
+              
+              <h3 style={{ margin: '0 0 0.6rem 0', color: '#fff', fontSize: '1.2rem', fontWeight: '600', letterSpacing: '-0.02em' }}>
+                Analyzing Topic Matrix
+              </h3>
+              
+              <p style={{ color: '#64748b', fontSize: '0.88rem', margin: '0 0 2rem 0', lineHeight: '1.4' }}>
+                Gemini Engine is tailoring comprehensive structures, architectural roadmaps, and custom level examples...
+              </p>
+
+              {/* Shimmer Progress Track */}
+              <div style={{
+                width: '100%',
+                height: '6px',
+                background: '#1e293b',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                position: 'relative'
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  height: '100%',
+                  width: '45%',
+                  background: 'linear-gradient(90deg, #06b6d4, #3b82f6)',
+                  borderRadius: '10px',
+                  animation: 'shimmerProgressBar 1.4s infinite ease-in-out'
+                }} />
+              </div>
+            </div>
+
+            {/* Micro CSS Animations Injection */}
+            <style>{`
+              @keyframes workspaceCoreSpin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              @keyframes shimmerProgressBar {
+                0% { left: -50%; }
+                100% { left: 100%; }
+              }
+            `}</style>
           </div>
         )}
 
-        {/* Distributed dynamic data parameters down straight to Canvas elements rendering */}
+        {/* 🚀 DISTRIBUTED DYNAMIC DANGER CANVAS */}
         <MainResourceCanvas 
           topicName={currentTopicName}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           videoSearchQuery={activeMaterial?.videoLink || "https://www.youtube.com"}
-          materialNotes={activeMaterial} // Passing whole material object containing definition, examples etc.
+          materialNotes={activeMaterial} 
           quiz={currentModule?.quiz} 
           assignment={currentModule?.assignment} 
           onComplete={markTopicAsCompleted} 

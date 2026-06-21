@@ -66,16 +66,12 @@ const CourseSchema = new mongoose.Schema({
 });
 const Course = mongoose.model('Course', CourseSchema);
 
-// 🚀 NEW MATERIALS COLLECTION (Tied to CourseId & ModuleId for Real-time Content Storage)
+// 🚀 ULTRA-DYNAMIC MATERIALS SCHEMA (No Fixed Parameter Constraints)
 const MaterialSchema = new mongoose.Schema({
   courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
   moduleId: { type: Number, required: true },
   topicName: { type: String, required: true },
-  definition: { type: String, required: true },
-  howItWorks: { type: String, required: true },
-  advantages: [String],
-  disadvantages: [String],
-  examples: { type: String, required: true },
+  htmlContent: { type: String, required: true }, // Gemini will write pure visual layouts here
   videoLink: { type: String, default: "https://www.youtube.com" },
   createdAt: { type: Date, default: Date.now }
 });
@@ -256,44 +252,59 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   }
 });
 
-// --- 🚀 METHOD 2 (NEW REAL-TIME LAYER): GENERATES & STORES DEEP MATERIALS FOR SPECIFIC TOPIC ON CLICK ---
+// --- 🚀 METHOD 2 (FLEXIBLE MULTI-THEME LAYER): THE OPEN FIELD TEXT MATRIX ---
 app.post('/api/courses/fetch-material', authorizeSessionToken, async (req, res) => {
   const { courseId, moduleId, topicName } = req.body;
-
   if (!courseId || !moduleId || !topicName) {
     return res.status(400).json({ success: false, message: "Missing required identification metadata strings." });
   }
 
   try {
+    // Course details find karke dynamic complexity track level extract karein (Beginner / Intermediate / Advanced)
+    const targetCourse = await Course.findById(courseId);
+    const currentLevel = targetCourse ? targetCourse.level : "Beginner"; 
+
     // Check if deep topic text data exists inside Materials Collection
     let existingMaterial = await Material.findOne({ courseId, moduleId, topicName });
     
     if (existingMaterial) {
-      console.log(`💡 [MATERIAL_CACHE_HIT]: Serving data node dynamically from Materials Collection.`);
+      console.log(`💡 [MATERIAL_CACHE_HIT]: Serving adapted dynamic data node from collection.`);
       return res.status(200).json({ success: true, data: existingMaterial });
     }
 
-    console.log(`🤖 [LAZY_MATERIAL_COMPILER]: Running Secondary Key sequence for topic: "${topicName}"`);
+    console.log(`🤖 [ADAPTIVE_COMPILER]: Running Dynamic Unconstrained Sequence for: "${topicName}" | Level: [${currentLevel}]`);
 
     const materialSchema = {
       type: "object",
       properties: {
-        definition: { type: "string" },
-        howItWorks: { type: "string" },
-        advantages: { type: "array", items: { type: "string" } },
-        disadvantages: { type: "array", items: { type: "string" } },
-        examples: { type: "string" },
+        htmlContent: { type: "string" },
         videoLink: { type: "string" }
       },
-      required: ["definition", "howItWorks", "advantages", "disadvantages", "examples", "videoLink"]
+      required: ["htmlContent", "videoLink"]
     };
 
-    const corePrompt = `Explain the technical concept string: "${topicName}" inside the scope module tracker context. Map out its deep semantic definition, operational process workflow on how it works, main pros array list, cons array list, and clean structural examples or code outputs. Also attach a live accessible educational youtube watch link (e.g. https://www.youtube.com/watch?v=...) relevant to this specific topic.`;
+    const systemPrompt = `You are LuminaLearn's elite senior software architect and master technical educator.
+    Explain the given topic deeply, extensively, and completely without any rigid parameter or section boundaries.
+    Write naturally like standard unconstrained Gemini or ChatGPT responses, breaking it down into what is TRULY critical for this specific concept (e.g., historical contexts, deep operational deep-dives, architectural maps, real-world case scenarios, optimizations, or tradeoffs).
 
-    const rawAiText = await callGeminiAPI(GEMINI_SECONDARY_KEY, corePrompt, "You are LuminaLearn deep content documentation material writer database model.", materialSchema);
+    STRICT DIFFICULTY ARCHITECTURAL RULES FOR 'htmlContent':
+    1. Output raw semantic inline-styled HTML wrapper strings. Do NOT wrap inside markdown block characters (\`\`\`).
+    2. Adapt perfectly to the Student Track Level: [${currentLevel}].
+       - Beginner: Focus on high-level mental models, interactive clear human analogies, visual breakdown steps, and readable basic starter code blocks with descriptive comments.
+       - Intermediate: Focus on real-world implementation structures, clean code guidelines, and common software integration edge bugs.
+       - Advanced/Expert: Focus on deep system design blueprints, performance metrics simulations using custom grid columns, memory footprints, concurrency thread pools, race conditions, optimization rules, and industrial production-grade implementation modules with complete error bounds.
+    3. Use gorgeous custom CSS block modules matching our dark slick ecosystem:
+       - Code snippets MUST be wrapped inside: '<pre style="background:#010409; padding:1.25rem; border:1px solid #30363d; border-radius:0.5rem; color:#e6edf3; overflow-x:auto; font-family:monospace; line-height:1.5; margin:1rem 0;"><code>...</code></pre>'
+       - Highlight cards/alerts: '<div style="background:#0c111d; border:1px solid #1f2d4d; border-radius:0.75rem; padding:1.5rem; margin-bottom:1.5rem; border-left:4px solid #06b6d4;">...</div>'
+       - Subheaders: '<h3 style="color:#06b6d4; font-size:1.3rem; font-weight:700; margin-top:1.5rem; margin-bottom:0.5rem;">...</h3>'
+    4. Make the content extremely comprehensive, detailed, and wide-ranging (provide multiple informative contextual layers).`;
+
+    const corePrompt = `Generate an unconstrained, deeply rich educational master lecture for the technical topic: "${topicName}". Student Target Experience Skillset: "${currentLevel}". Attach a high-relevance educational YouTube watch URL link for "videoLink".`;
+
+    const rawAiText = await callGeminiAPI(GEMINI_SECONDARY_KEY, corePrompt, systemPrompt, materialSchema);
     const parsedData = JSON.parse(rawAiText);
 
-    // Save dynamically into Materials Collection
+    // Save dynamically into Materials Inventory Collection
     const newMaterialRecord = new Material({
       courseId,
       moduleId,
@@ -302,13 +313,13 @@ app.post('/api/courses/fetch-material', authorizeSessionToken, async (req, res) 
     });
 
     await newMaterialRecord.save();
-    console.log(`💾 [DB_MATERIAL_SUCCESS]: Dynamic notes saved under materials inventory collection.`);
+    console.log(`💾 [DB_MATERIAL_DYNAMIC_SUCCESS]: Tailored unconstrained material committed under inventory.`);
     
     res.status(200).json({ success: true, data: newMaterialRecord });
 
   } catch (err) {
     console.error('❌ [MATERIAL_FAULT]:', err);
-    res.status(500).json({ success: false, message: "Real-time explanation compiler failed.", details: err.message });
+    res.status(500).json({ success: false, message: "Real-time dynamic content assembler pipeline failed.", details: err.message });
   }
 });
 
@@ -335,6 +346,6 @@ app.delete('/api/courses/:id', authorizeSessionToken, async (req, res) => {
 // Start Serving Pipeline Engine
 app.listen(PORT, '0.0.0.0', () => {
   console.log("-----------------------------------------------------------------");
-  console.log(`🚀 [SERVER ONLINE]: Serving Proper Consolidated Dual-Key Matrix on port: ${PORT}`);
+  console.log(`🚀 [SERVER ONLINE]: Serving Open Content Matrices on Port: ${PORT}`);
   console.log("-----------------------------------------------------------------");
 });
