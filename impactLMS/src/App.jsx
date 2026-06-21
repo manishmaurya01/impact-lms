@@ -6,6 +6,7 @@ import Login from './components/Authentication/Login/Login.jsx';
 import Register from './components/Authentication/Register/Register.jsx';
 import Dashboard from './components/Dashboard/Dashboard.jsx';
 import AIAssignmentEngine from './components/Asignment/AIAssignmentEngine.jsx';
+import NotesPage from './components/Notes/NotesPage.jsx';
 
 function App() {
   return (
@@ -22,7 +23,8 @@ function App() {
         
         {/* Core Workspace Dashboard Telemetry Node */}
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/assignment" element={<AIAssignmentEngine />} />
+        <Route path="/assignments" element={<AIAssignmentEngine />} />
+        <Route path="/notes" element={<NotesPage />} />
       </Routes>
     </Router>
   );

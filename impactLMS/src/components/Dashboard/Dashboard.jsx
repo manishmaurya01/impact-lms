@@ -126,13 +126,7 @@ function Dashboard() {
           >
             <LayoutDashboard size={18} /> Dashboard
           </button>
-          <button 
-            className={`nav-link-item ${activeTab === 'courses' ? 'is-active' : ''}`} 
-            onClick={() => { setActiveTab('courses'); setInnerTrackView('portfolio'); }}
-          >
-            <BookOpen size={18} /> Courses & History
-            {mongoSavedHistory.length > 0 && <span className="nav-count-badge">{mongoSavedHistory.length}</span>}
-          </button>
+        
         </nav>
 
         {/* --- PROFILE & LOGOUT SECTION --- */}
