@@ -1,6 +1,18 @@
 import React from 'react';
 
-export default function MainResourceCanvas({ topicName, activeTab, setActiveTab, videoSearchQuery, materialNotes, quiz, assignment, onComplete }) {
+export default function MainResourceCanvas({ 
+  topicName, 
+  activeTab, 
+  setActiveTab, 
+  videoSearchQuery, 
+  materialNotes, 
+  quiz, 
+  assignment, 
+  onComplete, 
+  onLaunchQuiz,
+  courseId,    // 🚀 UNPACKING TELEMETRY BINDING
+  moduleId     // 🚀 UNPACKING TELEMETRY BINDING
+}) {
   
   const getEmbedUrl = (url) => {
     if (!url) return "";
@@ -33,34 +45,18 @@ export default function MainResourceCanvas({ topicName, activeTab, setActiveTab,
               Active Workspace Concept Node: {topicName}
             </h2>
             
-            {/* Embedded Iframe Player Console */}
             <div style={{ height: '360px', background: '#02040a', borderRadius: '0.5rem', overflow: 'hidden' }}>
               <iframe width="100%" height="100%" src={getEmbedUrl(videoSearchQuery)} title="Video Console" frameBorder="0" allowFullScreen />
             </div>
 
-            {/* 🚀 UNCONSTRAINED FULL-SPECTRUM ADAPTIVE INJECTION INTERFACE */}
             {materialNotes && materialNotes.htmlContent ? (
               <div 
                 className="dynamic-rich-unconstrained-article"
-                style={{ 
-                  fontSize: '0.95rem', 
-                  color: '#cbd5e1', 
-                  lineHeight: '1.75', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '1.25rem' 
-                }}
+                style={{ fontSize: '0.95rem', color: '#cbd5e1', lineHeight: '1.75', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
                 dangerouslySetInnerHTML={{ __html: materialNotes.htmlContent }} 
               />
             ) : (
-              <div style={{
-                color: '#475569',
-                fontSize: '0.88rem',
-                padding: '4rem 2rem',
-                textAlign: 'center',
-                border: '1px dashed #1e293b',
-                borderRadius: '0.5rem'
-              }}>
+              <div style={{ color: '#475569', fontSize: '0.88rem', padding: '4rem 2rem', textAlign: 'center', border: '1px dashed #1e293b', borderRadius: '0.5rem' }}>
                 🔄 Awaiting server handshake... Stream compiling raw concept blocks blueprints.
               </div>
             )}
@@ -71,10 +67,30 @@ export default function MainResourceCanvas({ topicName, activeTab, setActiveTab,
           </div>
         )}
 
+        {/* 🚀 QUIZ TAB VIEW - DESIGN UPGRADED WITH LAUNCH HOOKS */}
         {activeTab === 'quiz' && (
-          <div>
-            <h3 style={{ color: '#f59e0b', margin: '0 0 1rem 0' }}>⚡ Module Quiz Evaluation: {quiz?.name}</h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>Theme Scope: {quiz?.quizTopic || "General Topic Validation"}</p>
+          <div style={{ maxWidth: '600px' }}>
+            <h3 style={{ color: '#f59e0b', margin: '0 0 0.5rem 0', fontSize: '1.3rem', fontWeight: '700' }}>
+              ⚡ Module Quiz Evaluation: {quiz?.name || "Topic Verification Quiz"}
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '0.88rem', margin: '0 0 2rem 0' }}>
+              This dynamic quiz bounds test constraints mapped explicitly for your verified workspace modules.
+            </p>
+
+            <div style={{ background: '#02040a', border: '1px solid #1e293b', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><strong>📚 Core Scope Focus:</strong> {quiz?.quizTopic || "Universal Module Concepts"}</div>
+                <div style={{ fontSize: '0.9rem', color: '#cbd5e1' }}><strong>⏳ Expected Speed Cap:</strong> {quiz?.duration || "Unlimited Time Allocations"}</div>
+              </div>
+
+              {/* Action Button that switches Component Frame */}
+              <button 
+                onClick={onLaunchQuiz}
+                style={{ background: '#f59e0b', border: 'none', color: '#000', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: '800', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                Proceed To Take Quiz Terminal
+              </button>
+            </div>
           </div>
         )}
 

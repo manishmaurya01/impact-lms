@@ -36,7 +36,6 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
-// 🚀 ORIGINAL HIGH-LEVEL SKELETON SCHEMA (Preserves absolute layout integrity)
 const CourseSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true },
@@ -50,7 +49,7 @@ const CourseSchema = new mongoose.Schema({
     shortSummary: String,
     visualGuidelines: String,
     youtubeSearchQuery: String,
-    topics: [String], // Plain string arrays matching your exact old document layout
+    topics: [String], 
     quiz: {
       name: String,
       quizTopic: String,
@@ -66,16 +65,43 @@ const CourseSchema = new mongoose.Schema({
 });
 const Course = mongoose.model('Course', CourseSchema);
 
-// 🚀 ULTRA-DYNAMIC MATERIALS SCHEMA (No Fixed Parameter Constraints)
 const MaterialSchema = new mongoose.Schema({
   courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
   moduleId: { type: Number, required: true },
   topicName: { type: String, required: true },
-  htmlContent: { type: String, required: true }, // Gemini will write pure visual layouts here
+  htmlContent: { type: String, required: true }, 
   videoLink: { type: String, default: "https://www.youtube.com" },
   createdAt: { type: Date, default: Date.now }
 });
 const Material = mongoose.model('Material', MaterialSchema);
+
+// 🚀 NEW SYSTEM COLLECTIONS FOR SECURE STUDIO QUIZ INFRASTRUCTURE
+const QuizDataSchema = new mongoose.Schema({
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  moduleId: { type: Number, required: true },
+  topicName: { type: String, required: true },
+  quizName: { type: String, required: true },
+  questions: [{
+    id: { type: Number, required: true },
+    questionText: { type: String, required: true },
+    options: [{ type: String, required: true }],
+    correctOptionIndex: { type: Number, required: true }
+  }],
+  createdAt: { type: Date, default: Date.now }
+});
+const QuizData = mongoose.model('QuizData', QuizDataSchema);
+
+const QuizResultsSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  quizDataId: { type: mongoose.Schema.Types.ObjectId, ref: 'QuizData', required: true },
+  totalQuestions: { type: Number, required: true },
+  correctAnswers: { type: Number, required: true },
+  scorePercentage: { type: Number, required: true },
+  userSelections: { type: Map, of: Number }, // Logs option selected by user for telemetry checks
+  evaluatedAt: { type: Date, default: Date.now }
+});
+const QuizResults = mongoose.model('QuizResults', QuizResultsSchema);
+
 
 // --- CLOUD ATLAS STORAGE LINK HANDSHAKE ---
 const CLOUD_MONGO_URI = "mongodb+srv://mindmasters5167_db_user:r02VzCsxlIcdrSBQ@cluster0.4vnuwks.mongodb.net/lumina_learn_db?retryWrites=true&w=majority";
@@ -83,6 +109,7 @@ const CLOUD_MONGO_URI = "mongodb+srv://mindmasters5167_db_user:r02VzCsxlIcdrSBQ@
 mongoose.connect(CLOUD_MONGO_URI)
   .then(() => console.log('📡 [DATABASE_CONNECTED]: Successfully mapped to MongoDB Cloud Atlas (lumina_learn_db)!'))
   .catch(err => console.error('❌ [DATABASE_OFFLINE]: Cloud handshake pipeline crashed:', err));
+
 
 // --- UNIVERSAL GEMINI Rest API COUPLER ---
 const callGeminiAPI = async (apiKey, userQuery, systemPrompt, customSchema) => {
@@ -112,6 +139,7 @@ const callGeminiAPI = async (apiKey, userQuery, systemPrompt, customSchema) => {
   return responseData.candidates?.[0]?.content?.parts?.[0]?.text;
 };
 
+
 // --- SESSION SECURITY LAYER MIDDLEWARE ---
 const authorizeSessionToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -124,6 +152,7 @@ const authorizeSessionToken = (req, res, next) => {
     next();
   });
 };
+
 
 // --- SECURITY ACCOUNT MANAGER ROUTERS ---
 app.post('/api/auth/register', async (req, res) => {
@@ -167,7 +196,8 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// --- 🚀 METHOD 1 (OLD CORES SAFE): COMPILES THE HIGH-LEVEL SYLLABUS LAYOUT IMMUTABLE ---
+
+// --- 🚀 METHOD 1: COMPILES THE HIGH-LEVEL SYLLABUS LAYOUT IMMUTABLE ---
 app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const { prompt, level } = req.body;
   const activeUserId = req.user.userId;
@@ -194,25 +224,9 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
             shortSummary: { type: "string" },
             youtubeSearchQuery: { type: "string" },
             visualGuidelines: { type: "string" },
-            topics: { type: "array", items: { type: "string" } }, // Plain strings loop format preserved
-            quiz: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                quizTopic: { type: "string" },
-                duration: { type: "string" }
-              },
-              required: ["name", "quizTopic", "duration"]
-            },
-            assignment: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                assignmentObjective: { type: "string" },
-                complexity: { type: "string" }
-              },
-              required: ["name", "assignmentObjective", "complexity"]
-            }
+            topics: { type: "array", items: { type: "string" } },
+            quiz: { type: "object", properties: { name: { type: "string" }, quizTopic: { type: "string" }, duration: { type: "string" } }, required: ["name", "quizTopic", "duration"] },
+            assignment: { type: "object", properties: { name: { type: "string" }, assignmentObjective: { type: "string" }, complexity: { type: "string" } }, required: ["name", "assignmentObjective", "complexity"] }
           },
           required: ["moduleId", "moduleName", "objective", "shortSummary", "youtubeSearchQuery", "visualGuidelines", "topics", "quiz", "assignment"]
         }
@@ -224,104 +238,155 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const userQueryPrompt = `Construct a complete course matrix roadmap on the topic: "${prompt}" suited for depth layer: "${level || 'Beginner'}". Output stringified JSON format structure directly without markdown backticks wrapper strings.`;
 
   try {
-    console.log(`🤖 [AI_ENGINE]: Parsing course data stream elements via Primary Key for user: ${activeUserId}`);
     const rawAiText = await callGeminiAPI(GEMINI_PRIMARY_KEY, userQueryPrompt, systemInstructions, structuredResponseSchema);
-    
-    let jsonFormattedStr = rawAiText.trim();
-    if (jsonFormattedStr.startsWith('```')) {
-      jsonFormattedStr = jsonFormattedStr.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-    }
-
+    let jsonFormattedStr = rawAiText.trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
     const compiledCoursePayload = JSON.parse(jsonFormattedStr);
 
-    const persistentCourseNode = new Course({
-      userId: activeUserId,
-      title: compiledCoursePayload.title,
-      level: compiledCoursePayload.level,
-      estimatedTime: compiledCoursePayload.estimatedTime,
-      contentType: compiledCoursePayload.contentType,
-      modules: compiledCoursePayload.modules
-    });
-
+    const persistentCourseNode = new Course({ userId: activeUserId, ...compiledCoursePayload });
     await persistentCourseNode.save();
     return res.status(201).json({ success: true, data: persistentCourseNode });
-
   } catch (error) {
-    console.error('❌ [GENERATION_FAULT]:', error);
-    res.status(500).json({ success: false, error: 'AI model pipeline crashed.', details: error.message });
+    res.status(500).json({ success: false, error: 'AI model pipeline crashed.' });
   }
 });
 
-// --- 🚀 METHOD 2 (FLEXIBLE MULTI-THEME LAYER): THE OPEN FIELD TEXT MATRIX ---
+
+// --- 🚀 METHOD 2: FLEXIBLE MULTI-THEME LAYER THE OPEN FIELD TEXT MATRIX ---
 app.post('/api/courses/fetch-material', authorizeSessionToken, async (req, res) => {
   const { courseId, moduleId, topicName } = req.body;
-  if (!courseId || !moduleId || !topicName) {
-    return res.status(400).json({ success: false, message: "Missing required identification metadata strings." });
-  }
+  if (!courseId || !moduleId || !topicName) return res.status(400).json({ success: false, message: "Missing required identification metadata strings." });
 
   try {
-    // Course details find karke dynamic complexity track level extract karein (Beginner / Intermediate / Advanced)
     const targetCourse = await Course.findById(courseId);
     const currentLevel = targetCourse ? targetCourse.level : "Beginner"; 
 
-    // Check if deep topic text data exists inside Materials Collection
     let existingMaterial = await Material.findOne({ courseId, moduleId, topicName });
-    
-    if (existingMaterial) {
-      console.log(`💡 [MATERIAL_CACHE_HIT]: Serving adapted dynamic data node from collection.`);
-      return res.status(200).json({ success: true, data: existingMaterial });
-    }
-
-    console.log(`🤖 [ADAPTIVE_COMPILER]: Running Dynamic Unconstrained Sequence for: "${topicName}" | Level: [${currentLevel}]`);
+    if (existingMaterial) return res.status(200).json({ success: true, data: existingMaterial });
 
     const materialSchema = {
       type: "object",
-      properties: {
-        htmlContent: { type: "string" },
-        videoLink: { type: "string" }
-      },
+      properties: { htmlContent: { type: "string" }, videoLink: { type: "string" } },
       required: ["htmlContent", "videoLink"]
     };
 
-    const systemPrompt = `You are LuminaLearn's elite senior software architect and master technical educator.
-    Explain the given topic deeply, extensively, and completely without any rigid parameter or section boundaries.
-    Write naturally like standard unconstrained Gemini or ChatGPT responses, breaking it down into what is TRULY critical for this specific concept (e.g., historical contexts, deep operational deep-dives, architectural maps, real-world case scenarios, optimizations, or tradeoffs).
-
-    STRICT DIFFICULTY ARCHITECTURAL RULES FOR 'htmlContent':
-    1. Output raw semantic inline-styled HTML wrapper strings. Do NOT wrap inside markdown block characters (\`\`\`).
-    2. Adapt perfectly to the Student Track Level: [${currentLevel}].
-       - Beginner: Focus on high-level mental models, interactive clear human analogies, visual breakdown steps, and readable basic starter code blocks with descriptive comments.
-       - Intermediate: Focus on real-world implementation structures, clean code guidelines, and common software integration edge bugs.
-       - Advanced/Expert: Focus on deep system design blueprints, performance metrics simulations using custom grid columns, memory footprints, concurrency thread pools, race conditions, optimization rules, and industrial production-grade implementation modules with complete error bounds.
-    3. Use gorgeous custom CSS block modules matching our dark slick ecosystem:
-       - Code snippets MUST be wrapped inside: '<pre style="background:#010409; padding:1.25rem; border:1px solid #30363d; border-radius:0.5rem; color:#e6edf3; overflow-x:auto; font-family:monospace; line-height:1.5; margin:1rem 0;"><code>...</code></pre>'
-       - Highlight cards/alerts: '<div style="background:#0c111d; border:1px solid #1f2d4d; border-radius:0.75rem; padding:1.5rem; margin-bottom:1.5rem; border-left:4px solid #06b6d4;">...</div>'
-       - Subheaders: '<h3 style="color:#06b6d4; font-size:1.3rem; font-weight:700; margin-top:1.5rem; margin-bottom:0.5rem;">...</h3>'
-    4. Make the content extremely comprehensive, detailed, and wide-ranging (provide multiple informative contextual layers).`;
+    const systemPrompt = `You are LuminaLearn's elite senior software architect and master technical educator. Explain the given topic deeply, extensively, and completely without any rigid parameter or section boundaries. 
+    Write exactly like standard unconstrained responses, using beautiful custom inline-styled HTML wrappers. Adopt perfectly to the skill level: [${currentLevel}].
+    Use clean design block palettes: terminal panels with color rules #e6edf3 for codes, dark slate alerts, and sharp accent neon cards for analogies. Avoid markdown wraps.`;
 
     const corePrompt = `Generate an unconstrained, deeply rich educational master lecture for the technical topic: "${topicName}". Student Target Experience Skillset: "${currentLevel}". Attach a high-relevance educational YouTube watch URL link for "videoLink".`;
 
     const rawAiText = await callGeminiAPI(GEMINI_SECONDARY_KEY, corePrompt, systemPrompt, materialSchema);
     const parsedData = JSON.parse(rawAiText);
 
-    // Save dynamically into Materials Inventory Collection
-    const newMaterialRecord = new Material({
+    const newMaterialRecord = new Material({ courseId, moduleId, topicName, ...parsedData });
+    await newMaterialRecord.save();
+    res.status(200).json({ success: true, data: newMaterialRecord });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Real-time content pipeline fault." });
+  }
+});
+
+
+// --- 🚀 BACKEND CONTROLLER: WITH INTENSE TERMINAL LOGGING ---
+app.post('/api/quiz/generate-and-save', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName, quizName } = req.body;
+  
+  if(!courseId || !moduleId || !topicName) {
+    return res.status(400).json({ success: false, message: "Missing metadata tags." });
+  }
+
+  try {
+    const customSchema = {
+      type: "object",
+      properties: {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              questionText: { type: "string" },
+              options: { type: "array", items: { type: "string" } },
+              correctOptionIndex: { type: "integer" }
+            },
+            required: ["id", "questionText", "options", "correctOptionIndex"]
+          }
+        }
+      },
+      required: ["questions"]
+    };
+
+    const prompt = `Generate exactly 10 technical multiple-choice questions for the advanced software concept: "${topicName}". 
+    Each question must contain a unique incrementing id (1 to 10), clear questionText, an options choice list array of exactly 4 choices, and the specific correctOptionIndex (valid bounds integer 0-3).`;
+
+    console.log(`🤖 [QUIZ_COMPILER]: Triggering Gemini matrix stream for topic: ${topicName}`);
+    const rawText = await callGeminiAPI(GEMINI_SECONDARY_KEY, prompt, "You are LuminaLearn's automated strict academic test writer model.", customSchema);
+    
+    // 🔥 LIVE BACKEND LOGGING CHECKPOINT
+    console.log("==================== 🔥 RAW GEMINI OUTPUT START ====================");
+    console.log(rawText);
+    console.log("==================== 🔥 RAW GEMINI OUTPUT END ======================");
+
+    let cleanJsonStr = rawText.trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    let parsedQuestions;
+
+    try {
+      parsedQuestions = JSON.parse(cleanJsonStr);
+    } catch (parseErr) {
+      console.error("🚨 JSON parse failed locally. Attempting fallback repair...");
+      
+      // Force appending brackets if token payload got sliced in between
+      if (!cleanJsonStr.endsWith('}')) {
+        cleanJsonStr += ']}';
+      }
+      
+      console.log("🛠️ [REPAIRED STRING ATTEMPT]:", cleanJsonStr);
+      parsedQuestions = JSON.parse(cleanJsonStr);
+    }
+
+    const newQuizRecord = new QuizData({
       courseId,
       moduleId,
       topicName,
-      ...parsedData
+      quizName: quizName || "Sprint Evaluation Track",
+      questions: parsedQuestions.questions
     });
 
-    await newMaterialRecord.save();
-    console.log(`💾 [DB_MATERIAL_DYNAMIC_SUCCESS]: Tailored unconstrained material committed under inventory.`);
-    
-    res.status(200).json({ success: true, data: newMaterialRecord });
-
-  } catch (err) {
-    console.error('❌ [MATERIAL_FAULT]:', err);
-    res.status(500).json({ success: false, message: "Real-time dynamic content assembler pipeline failed.", details: err.message });
+    await newQuizRecord.save();
+    res.status(200).json({ success: true, quizData: newQuizRecord });
+  } catch (error) {
+    console.error("❌ Quiz generation pipeline crashed. Final Error State:", error.message);
+    res.status(500).json({ success: false, message: "Internal token compilation engine fault.", details: error.message });
   }
 });
+
+// --- 🚀 METHOD 4: RECORDS INDIVIDUAL PERFORMANCE EVALUATION (QUIZRESULTS) ---
+app.post('/api/quiz/record-results', authorizeSessionToken, async (req, res) => {
+  const { quizDataId, totalQuestions, correctAnswers, scorePercentage, userSelections } = req.body;
+  
+  if(!quizDataId || totalQuestions === undefined || correctAnswers === undefined) {
+    return res.status(400).json({ success: false, message: "Missing evaluation execution metrics parameters." });
+  }
+
+  try {
+    const finalResultNode = new QuizResults({
+      userId: req.user.userId,
+      quizDataId,
+      totalQuestions,
+      correctAnswers,
+      scorePercentage,
+      userSelections
+    });
+
+    await finalResultNode.save();
+    console.log(`💾 [DB_QUIZ_RESULTS_SUCCESS]: Analytics logs securely committed under quizresults warehouse node.`);
+    res.status(201).json({ success: true, message: "Performance metrics telemetry locked down successfully." });
+  } catch (error) {
+    console.error("❌ Results database tracking failure:", error);
+    res.status(500).json({ success: false, message: "Database transaction telemetry recording fault." });
+  }
+});
+
 
 // --- GET ALL SAVED COURSES ---
 app.get('/api/courses', authorizeSessionToken, async (req, res) => {
@@ -329,7 +394,7 @@ app.get('/api/courses', authorizeSessionToken, async (req, res) => {
     const courses = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: courses });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve cloud stored registries.' });
+    res.status(500).json({ success: false, message: 'Failed to retrieve cloud registries.' });
   }
 });
 
@@ -346,6 +411,6 @@ app.delete('/api/courses/:id', authorizeSessionToken, async (req, res) => {
 // Start Serving Pipeline Engine
 app.listen(PORT, '0.0.0.0', () => {
   console.log("-----------------------------------------------------------------");
-  console.log(`🚀 [SERVER ONLINE]: Serving Open Content Matrices on Port: ${PORT}`);
+  console.log(`🚀 [SERVER ONLINE]: Serving Open Content & Quiz Matrix on Port: ${PORT}`);
   console.log("-----------------------------------------------------------------");
 });
