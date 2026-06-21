@@ -21,11 +21,13 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms_key_99";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6KciGm1LiEU_PmoZ71sbIRsABSVhelaDxa_AwXU2b6sLA";
+
+// 🚀 DUAL API KEYS GATEWAY INTEGRATION
+const GEMINI_PRIMARY_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6KciGm1LiEU_PmoZ71sbIRsABSVhelaDxa_AwXU2b6sLA";
+const GEMINI_SECONDARY_KEY = process.env.GEMINI_SECONDARY_KEY || "AQ.Ab8RN6KciGm1LiEU_PmoZ71sbIRsABSVhelaDxa_AwXU2b6sLA";
 
 // --- MONGOOSE SCHEMAS & DATABASE MODELS ---
 
-// 🚀 REAL USER SCHEMA FOR SESSION PERSISTENCE
 const UserSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -34,6 +36,7 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
+// 🚀 ORIGINAL HIGH-LEVEL SKELETON SCHEMA (Preserves absolute layout integrity)
 const CourseSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true },
@@ -44,10 +47,10 @@ const CourseSchema = new mongoose.Schema({
     moduleId: Number,
     moduleName: String,
     objective: String,
-    topics: [String],
-    youtubeSearchQuery: String,
     shortSummary: String,
-    visualGuidelines: String, 
+    visualGuidelines: String,
+    youtubeSearchQuery: String,
+    topics: [String], // Plain string arrays matching your exact old document layout
     quiz: {
       name: String,
       quizTopic: String,
@@ -63,31 +66,32 @@ const CourseSchema = new mongoose.Schema({
 });
 const Course = mongoose.model('Course', CourseSchema);
 
-// --- DATABASE HANDSHAKE WITH ATLAS & LOCAL FALLBACKS ---
+// 🚀 NEW MATERIALS COLLECTION (Tied to CourseId & ModuleId for Real-time Content Storage)
+const MaterialSchema = new mongoose.Schema({
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  moduleId: { type: Number, required: true },
+  topicName: { type: String, required: true },
+  definition: { type: String, required: true },
+  howItWorks: { type: String, required: true },
+  advantages: [String],
+  disadvantages: [String],
+  examples: { type: String, required: true },
+  videoLink: { type: String, default: "https://www.youtube.com" },
+  createdAt: { type: Date, default: Date.now }
+});
+const Material = mongoose.model('Material', MaterialSchema);
+
+// --- CLOUD ATLAS STORAGE LINK HANDSHAKE ---
 const CLOUD_MONGO_URI = "mongodb+srv://mindmasters5167_db_user:r02VzCsxlIcdrSBQ@cluster0.4vnuwks.mongodb.net/lumina_learn_db?retryWrites=true&w=majority";
-const LOCAL_MONGO_URI = "mongodb://127.0.0.1:27017/lumina_learn_db";
 
-const connectDatabase = async () => {
-  mongoose.set('bufferCommands', false);
-  try {
-    console.log('📡 [DB_CONNECT]: Attempting Cloud MongoDB Atlas Cluster link...');
-    await mongoose.connect(CLOUD_MONGO_URI, { serverSelectionTimeoutMS: 5000 });
-    console.log('📡 [DATABASE_CONNECTED]: Successfully connected to MongoDB Cloud Atlas (lumina_learn_db)!');
-  } catch (cloudErr) {
-    console.warn('⚠️ [CLOUD_FAILED]: Cloud MongoDB Atlas failed. Switching to Local MongoDB...');
-    try {
-      await mongoose.connect(LOCAL_MONGO_URI, { serverSelectionTimeoutMS: 4000 });
-      console.log('📡 [DATABASE_CONNECTED]: Connected to Local MongoDB successfully!');
-    } catch (localErr) {
-      console.error('❌ [DATABASE_OFFLINE]: Both Cloud and Local MongoDB are offline.');
-    }
-  }
-};
-connectDatabase();
+mongoose.connect(CLOUD_MONGO_URI)
+  .then(() => console.log('📡 [DATABASE_CONNECTED]: Successfully mapped to MongoDB Cloud Atlas (lumina_learn_db)!'))
+  .catch(err => console.error('❌ [DATABASE_OFFLINE]: Cloud handshake pipeline crashed:', err));
 
-// --- GOOGLE GEMINI Rest API CONNECTOR ---
-const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+// --- UNIVERSAL GEMINI Rest API COUPLER ---
+const callGeminiAPI = async (apiKey, userQuery, systemPrompt, customSchema) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  
   const requestPayload = {
     contents: [{ parts: [{ text: userQuery }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -105,7 +109,7 @@ const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
   
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Gemini status code error: ${response.status} - ${errText}`);
+    throw new Error(`Gemini gateway failed code: ${response.status} - ${errText}`);
   }
   
   const responseData = await response.json();
@@ -125,72 +129,56 @@ const authorizeSessionToken = (req, res, next) => {
   });
 };
 
-// --- DUMMY DIAGNOSTIC ENDPOINT ---
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    success: true, 
-    dbStatus: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected"
-  });
-});
-
-// --- REAL REGISTER USER ROUTE ---
+// --- SECURITY ACCOUNT MANAGER ROUTERS ---
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { fullName, email, password } = req.body;
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ success: false, message: 'All fields are required.' });
-    }
+    if (!fullName || !email || !password) return res.status(400).json({ success: false, message: 'All inputs required.' });
 
     const userExists = await User.findOne({ email });
-    if (userExists) return res.status(400).json({ success: false, message: 'User already exists.' });
+    if (userExists) return res.status(400).json({ success: false, message: 'User profile already registered.' });
 
-    // Encrypt Password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = new User({ fullName, email, password: hashedPassword });
     await newUser.save();
 
-    res.status(201).json({ success: true, message: 'User compiled successfully!' });
+    res.status(201).json({ success: true, message: 'Account node deployed successfully.' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Internal signup error.' });
+    res.status(500).json({ success: false, message: 'Internal signup validator crash.' });
   }
 });
 
-// --- REAL LOGIN GATEWAY (SAB USER KE LIYE PROPER FIXED) ---
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Database check for actual registered email profile
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ success: false, message: 'Invalid credentials.' });
 
-    // Validate Encryption Match
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ success: false, message: 'Invalid credentials.' });
 
-    // Embed real matching specific userId into token session
     const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
 
     res.status(200).json({
       success: true,
       token,
-      user: { id: user._id, fullName: user.fullName, email: user.email, role: "Student", domain: "Programming" }
+      user: { id: user._id, fullName: user.fullName, email: user.email }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Authentication error.' });
+    res.status(500).json({ success: false, message: 'Authentication error gateway fault.' });
   }
 });
 
-// --- AI COURSE GENERATOR ---
+// --- 🚀 METHOD 1 (OLD CORES SAFE): COMPILES THE HIGH-LEVEL SYLLABUS LAYOUT IMMUTABLE ---
 app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const { prompt, level } = req.body;
   const activeUserId = req.user.userId;
 
   if (!prompt) return res.status(400).json({ success: false, error: 'Prompt is required.' });
 
-  const systemInstructions = `You are LuminaLearn smart pedagogical system engine. Evaluate the subject matter query. Return a structured dynamic array match payload containing exclusive quiz elements and assignment tracks.`;
+  const systemInstructions = `You are LuminaLearn smart pedagogical system engine. Evaluate the subject matter query. Return a structured layout containing plain string array of topics, an exclusive quiz element metadata, and assignment tracks bounds rules.`;
   
   const structuredResponseSchema = {
     type: "object",
@@ -207,10 +195,10 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
             moduleId: { type: "integer" },
             moduleName: { type: "string" },
             objective: { type: "string" },
-            topics: { type: "array", items: { type: "string" } },
-            youtubeSearchQuery: { type: "string" },
             shortSummary: { type: "string" },
+            youtubeSearchQuery: { type: "string" },
             visualGuidelines: { type: "string" },
+            topics: { type: "array", items: { type: "string" } }, // Plain strings loop format preserved
             quiz: {
               type: "object",
               properties: {
@@ -230,7 +218,7 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
               required: ["name", "assignmentObjective", "complexity"]
             }
           },
-          required: ["moduleId", "moduleName", "objective", "topics", "youtubeSearchQuery", "shortSummary", "visualGuidelines", "quiz", "assignment"]
+          required: ["moduleId", "moduleName", "objective", "shortSummary", "youtubeSearchQuery", "visualGuidelines", "topics", "quiz", "assignment"]
         }
       }
     },
@@ -240,7 +228,9 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const userQueryPrompt = `Construct a complete course matrix roadmap on the topic: "${prompt}" suited for depth layer: "${level || 'Beginner'}". Output stringified JSON format structure directly without markdown backticks wrapper strings.`;
 
   try {
-    const rawAiText = await callGeminiAPI(userQueryPrompt, systemInstructions, structuredResponseSchema);
+    console.log(`🤖 [AI_ENGINE]: Parsing course data stream elements via Primary Key for user: ${activeUserId}`);
+    const rawAiText = await callGeminiAPI(GEMINI_PRIMARY_KEY, userQueryPrompt, systemInstructions, structuredResponseSchema);
+    
     let jsonFormattedStr = rawAiText.trim();
     if (jsonFormattedStr.startsWith('```')) {
       jsonFormattedStr = jsonFormattedStr.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
@@ -249,7 +239,7 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
     const compiledCoursePayload = JSON.parse(jsonFormattedStr);
 
     const persistentCourseNode = new Course({
-      userId: activeUserId, // Tied to specific logged-in user
+      userId: activeUserId,
       title: compiledCoursePayload.title,
       level: compiledCoursePayload.level,
       estimatedTime: compiledCoursePayload.estimatedTime,
@@ -257,23 +247,74 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
       modules: compiledCoursePayload.modules
     });
 
-    if (mongoose.connection.readyState === 1) {
-      await persistentCourseNode.save();
-    }
-
+    await persistentCourseNode.save();
     return res.status(201).json({ success: true, data: persistentCourseNode });
+
   } catch (error) {
+    console.error('❌ [GENERATION_FAULT]:', error);
     res.status(500).json({ success: false, error: 'AI model pipeline crashed.', details: error.message });
   }
 });
 
-// --- GET ALL SAVED COURSES FOR RELEVANT ACTIVE SESSION USER ---
+// --- 🚀 METHOD 2 (NEW REAL-TIME LAYER): GENERATES & STORES DEEP MATERIALS FOR SPECIFIC TOPIC ON CLICK ---
+app.post('/api/courses/fetch-material', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName } = req.body;
+
+  if (!courseId || !moduleId || !topicName) {
+    return res.status(400).json({ success: false, message: "Missing required identification metadata strings." });
+  }
+
+  try {
+    // Check if deep topic text data exists inside Materials Collection
+    let existingMaterial = await Material.findOne({ courseId, moduleId, topicName });
+    
+    if (existingMaterial) {
+      console.log(`💡 [MATERIAL_CACHE_HIT]: Serving data node dynamically from Materials Collection.`);
+      return res.status(200).json({ success: true, data: existingMaterial });
+    }
+
+    console.log(`🤖 [LAZY_MATERIAL_COMPILER]: Running Secondary Key sequence for topic: "${topicName}"`);
+
+    const materialSchema = {
+      type: "object",
+      properties: {
+        definition: { type: "string" },
+        howItWorks: { type: "string" },
+        advantages: { type: "array", items: { type: "string" } },
+        disadvantages: { type: "array", items: { type: "string" } },
+        examples: { type: "string" },
+        videoLink: { type: "string" }
+      },
+      required: ["definition", "howItWorks", "advantages", "disadvantages", "examples", "videoLink"]
+    };
+
+    const corePrompt = `Explain the technical concept string: "${topicName}" inside the scope module tracker context. Map out its deep semantic definition, operational process workflow on how it works, main pros array list, cons array list, and clean structural examples or code outputs. Also attach a live accessible educational youtube watch link (e.g. https://www.youtube.com/watch?v=...) relevant to this specific topic.`;
+
+    const rawAiText = await callGeminiAPI(GEMINI_SECONDARY_KEY, corePrompt, "You are LuminaLearn deep content documentation material writer database model.", materialSchema);
+    const parsedData = JSON.parse(rawAiText);
+
+    // Save dynamically into Materials Collection
+    const newMaterialRecord = new Material({
+      courseId,
+      moduleId,
+      topicName,
+      ...parsedData
+    });
+
+    await newMaterialRecord.save();
+    console.log(`💾 [DB_MATERIAL_SUCCESS]: Dynamic notes saved under materials inventory collection.`);
+    
+    res.status(200).json({ success: true, data: newMaterialRecord });
+
+  } catch (err) {
+    console.error('❌ [MATERIAL_FAULT]:', err);
+    res.status(500).json({ success: false, message: "Real-time explanation compiler failed.", details: err.message });
+  }
+});
+
+// --- GET ALL SAVED COURSES ---
 app.get('/api/courses', authorizeSessionToken, async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(200).json({ success: true, data: [] });
-    }
-    // Strict filter parameter optimization: Only fetch courses mapped to this user's dynamic id
     const courses = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: courses });
   } catch (error) {
@@ -284,17 +325,16 @@ app.get('/api/courses', authorizeSessionToken, async (req, res) => {
 // --- DELETE OPERATION ---
 app.delete('/api/courses/:id', authorizeSessionToken, async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(400).json({ success: false, message: 'Database layer is offline.' });
-    }
-    const result = await Course.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
-    if (!result) return res.status(404).json({ success: false, message: 'Document not found.' });
+    await Course.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
     res.status(200).json({ success: true, message: 'Roadmap node cleared successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Database deletion query crashed.' });
   }
 });
 
+// Start Serving Pipeline Engine
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 [SERVER ONLINE]: Serving multi-user safe platform on port: ${PORT}`);
+  console.log("-----------------------------------------------------------------");
+  console.log(`🚀 [SERVER ONLINE]: Serving Proper Consolidated Dual-Key Matrix on port: ${PORT}`);
+  console.log("-----------------------------------------------------------------");
 });

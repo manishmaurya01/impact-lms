@@ -1,142 +1,103 @@
-import React from 'react';
-import { Video, FileText, Globe, Check, Award, Terminal } from 'lucide-react';
+import React, { useState } from 'react';
+import { Play, FileText, Award, CheckCircle, BookOpen, AlertTriangle, Lightbulb } from 'lucide-react';
 
-export default function MainResourceCanvas({ activeModuleId, activeTopicIndex, topicName, activeTab, setActiveTab, quiz, assignment, onComplete }) {
-  
-  // Format target clean query parameter links maps to pass to specific educational portals
-  const formattedQuery = encodeURIComponent(topicName);
+export default function MainResourceCanvas({ topicName, activeTab, setActiveTab, videoSearchQuery, materialNotes, quiz, assignment, onComplete }) {
+  const getEmbedUrl = (url) => {
+    if (!url) return "";
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : url;
+  };
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#02040a', overflowY: 'auto', padding: '2rem' }}>
-      <div style={{ maxWidth: '58rem', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#02040a', padding: '2rem', overflowY: 'auto', color: '#fff' }}>
+      
+      {/* Tab Menu Control Matrices */}
+      <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #1e293b', paddingBottom: '1rem', marginBottom: '2rem' }}>
+        <button onClick={() => setActiveTab('video')} style={{ background: activeTab === 'video' ? 'rgba(6,182,212,0.05)' : 'transparent', border: 'none', color: activeTab === 'video' ? '#06b6d4' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold' }}>
+          📺 Video Lecture & Study Material
+        </button>
+        <button onClick={() => setActiveTab('quiz')} style={{ background: activeTab === 'quiz' ? 'rgba(245,158,11,0.05)' : 'transparent', border: 'none', color: activeTab === 'quiz' ? '#f59e0b' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold' }}>
+          ⚡ Quiz Evaluation
+        </button>
+        <button onClick={() => setActiveTab('assignment')} style={{ background: activeTab === 'assignment' ? 'rgba(16,185,129,0.05)' : 'transparent', border: 'none', color: activeTab === 'assignment' ? '#10b981' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold' }}>
+          🛠️ Assignment Challenge
+        </button>
+      </div>
+
+      <div style={{ flex: 1, background: '#070a12', border: '1px solid rgba(255,255,255,0.02)', padding: '2rem', borderRadius: '1rem' }}>
         
-        {/* TOP TOPIC TITLE ACTION BANNER HEADER */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '1rem' }}>
+        {activeTab === 'video' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>Active Workspace Core Concept: {topicName}</h2>
+            
+            {/* Video Player Embedded Canvas */}
+            <div style={{ height: '360px', background: '#02040a', borderRadius: '0.5rem', overflow: 'hidden' }}>
+              <iframe width="100%" height="100%" src={getEmbedUrl(videoSearchQuery)} title="Video Console" frameBorder="0" allowFullScreen />
+            </div>
+
+            {/* 🚀 DEEP ENHANCED DISCOVERY MATERIAL CORE UI LAYOUT */}
+            {materialNotes ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
+                
+                {/* Section A: Definition */}
+                <div style={{ background: '#02040a', padding: '1.25rem', borderRadius: '0.5rem', borderLeft: '4px solid #06b6d4' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#06b6d4' }}><BookOpen size={16}/> Concept Definition</h4>
+                  <p style={{ fontSize: '0.9rem', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>{materialNotes.definition}</p>
+                </div>
+
+                {/* Section B: How it Works */}
+                <div style={{ background: '#02040a', padding: '1.25rem', borderRadius: '0.5rem', borderLeft: '4px solid #8b5cf6' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#8b5cf6' }}><Lightbulb size={16}/> How it Works (Internal Logic)</h4>
+                  <p style={{ fontSize: '0.9rem', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>{materialNotes.howItWorks}</p>
+                </div>
+
+                {/* Section C: Advantages vs Disadvantages */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ background: '#02040a', padding: '1.25rem', borderRadius: '0.5rem', borderTop: '2px solid #10b981' }}>
+                    <h5 style={{ margin: '0 0 0.5rem 0', color: '#10b981' }}>🟢 Main Advantages</h5>
+                    <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
+                      {materialNotes.advantages?.map((adv, idx) => <li key={idx} style={{ marginBottom: '0.25rem' }}>{adv}</li>)}
+                    </ul>
+                  </div>
+                  <div style={{ background: '#02040a', padding: '1.25rem', borderRadius: '0.5rem', borderTop: '2px solid #ef4444' }}>
+                    <h5 style={{ margin: '0 0 0.5rem 0', color: '#ef4444' }}>🔴 Key Disadvantages</h5>
+                    <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
+                      {materialNotes.disadvantages?.map((dis, idx) => <li key={idx} style={{ marginBottom: '0.25rem' }}>{dis}</li>)}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Section D: Code / Functional Application Examples */}
+                <div style={{ background: '#010409', border: '1px solid #30363d', padding: '1.25rem', borderRadius: '0.5rem', fontFamily: 'monospace' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', color: '#58a6ff' }}>💻 Implementation & Practical Examples:</h5>
+                  <pre style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>{materialNotes.examples}</pre>
+                </div>
+
+              </div>
+            ) : (
+              <div style={{ color: '#475569', fontSize: '0.85rem' }}>Synthesizing active topic materials parameters stream...</div>
+            )}
+
+            <button onClick={onComplete} style={{ alignSelf: 'flex-end', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
+              Mark Concept Finished
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'quiz' && (
           <div>
-            <span style={{ fontSize: '0.7rem', color: '#06B6D4', fontWeight: 'bold', fontFamily: 'monospace' }}>TARGET CORE CONCEPT CONSOLE</span>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', margin: '0.2rem 0 0 0' }}>{topicName}</h2>
+            <h3 style={{ color: '#f59e0b', margin: '0 0 1rem 0' }}>⚡ Module Quiz Evaluation: {quiz?.name}</h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>Theme Scope: {quiz?.quizTopic || "General Topic Validation"}</p>
           </div>
-          <button 
-            onClick={onComplete}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: '#fff', padding: '0.6rem 1.25rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 15px rgba(16,185,129,0.2)' }}
-          >
-            <Check size={14} /> Mark Topic Done
-          </button>
-        </div>
+        )}
 
-        {/* 🚀 THREE-PART SUB NAVIGATION TABS HUB */}
-        <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255,255,255,0.01)', border: '1px solid #1e293b', padding: '0.35rem', borderRadius: '50px', width: 'fit-content' }}>
-          {[
-            { id: 'video', label: 'Video Reference', icon: <Video size={13} /> },
-            { id: 'material', label: 'Material Notes', icon: <FileText size={13} /> },
-            { id: 'web', label: 'Web Documentation References', icon: <Globe size={13} /> }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1.25rem',
-                border: 'none', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 600,
-                background: activeTab === tab.id ? '#1e293b' : 'transparent',
-                color: activeTab === tab.id ? '#fff' : '#64748b', cursor: 'pointer', transition: 'all 0.2s'
-              }}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* 🚀 SUB-TAB WINDOW VIEW DISPATCHERS CONTEXTS */}
-        <div style={{ minHeight: '300px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '1rem', padding: '1.5rem' }}>
-          
-          {/* TAB 1: YOUTUBE EMBED PLAYER MOUNT */}
-          {activeTab === 'video' && (
-            <div style={{ width: '100%', height: '380px', borderRadius: '0.5rem', overflow: 'hidden', background: '#000' }}>
-              <iframe 
-                width="100%" 
-                height="100%" 
-                src={`https://www.youtube.com/embed?listType=search&list=${formattedQuery}`}
-                title="LuminaLearn Stream Console"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowFullScreen
-              ></iframe>
-            </div>
-          )}
-
-          {/* TAB 2: TEXT MATERIAL BASE SYNTAX DESCRIPTIONS */}
-          {activeTab === 'material' && (
-            <div style={{ color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.6', fontFamily: 'sans-serif' }}>
-              <h4 style={{ color: '#fff', marginBottom: '1rem' }}>Syntax Breakdown & Production Implementation Notes</h4>
-              <p>Below is the compiled contextual structural walkthrough regarding <strong>{topicName}</strong>. review structural dependencies architecture loops rules safely:</p>
-              <pre style={{ background: '#090d16', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #1e293b', color: '#a78bfa', fontSize: '0.8rem', overflowX: 'auto', marginTop: '1rem' }}>
-{`// Production Target Sandbox Compilation Frame for:
-// ${topicName}
-
-function executeModuleEngineInstance() {
-  console.log("[LUMINALEARN_STUDIO] Syncing telemetry pointers execution ok...");
-  return true;
-}`}
-              </pre>
-            </div>
-          )}
-
-          {/* TAB 3: WEB LINKS PORTALS CHIPS */}
-          {activeTab === 'web' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              {[
-                { name: 'MDN Web Docs Portal', domain: 'developer.mozilla.org', color: '#fff' },
-                { name: 'GeeksforGeeks Library', domain: 'geeksforgeeks.org', color: '#2f9e44' },
-                { name: 'W3Schools Sandboxes', domain: 'w3schools.com', color: '#04aa6d' },
-                { name: 'Official Language Specification', domain: 'documentation.org', color: '#06b6d4' }
-              ].map((site, idx) => (
-                <a
-                  key={idx}
-                  href={`https://${site.domain}/search?q=${formattedQuery}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', padding: '1.25rem', background: '#070a12', border: '1px solid #1e293b', borderRadius: '0.75rem', textDecoration: 'none', transition: 'transform 0.2s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                >
-                  <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: site.color }}>{site.name}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#475569' }}>Browse index references &rarr;</span>
-                </a>
-              ))}
-            </div>
-          )}
-
-        </div>
-
-        {/* 🔒 BOTTOM FIXED SUB CONSOLE: EVALUATION MODULES AND TASKS MESH */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '2rem' }}>
-          
-          {/* Realtime Quiz Verification Box */}
-          <div style={{ background: 'rgba(245,158,11,0.02)', border: '1px solid rgba(245,158,11,0.08)', padding: '1.5rem', borderRadius: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#f59e0b', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-              <Award size={14} /> AI Context Calibration Test
-            </div>
-            <h4 style={{ margin: '0 0 0.5rem 0', color: '#fff', fontSize: '1rem' }}>{quiz?.name || "Topic Evaluation MCQ Check"}</h4>
-            <p style={{ margin: '0 0 1.25rem 0', color: '#64748b', fontSize: '0.8rem' }}>Validation Scope: Complete active content reading matrices to answer verification parameters blocks.</p>
-            <button onClick={() => alert("Spinning up evaluation instances...")} style={{ background: '#f59e0b', border: 'none', color: '#020617', padding: '0.55rem 1rem', borderRadius: '0.5rem', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}>
-              Launch Quiz Terminal
-            </button>
+        {activeTab === 'assignment' && (
+          <div>
+            <h3 style={{ color: '#10b981', margin: '0 0 1rem 0' }}>🛠️ Core Challenge Task: {assignment?.name}</h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.5' }}>{assignment?.assignmentObjective}</p>
           </div>
-
-          {/* Code Execution Sandbox Challenge Box */}
-          <div style={{ background: 'rgba(16,185,129,0.02)', border: '1px solid rgba(16,185,129,0.08)', padding: '1.5rem', borderRadius: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#10b981', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-              <Terminal size={14} /> Production Sandbox Challenge
-            </div>
-            <h4 style={{ margin: '0 0 0.5rem 0', color: '#fff', fontSize: '1rem' }}>{assignment?.name || "System Logic Build Testing"}</h4>
-            <p style={{ margin: '0 0 1.25rem 0', color: '#64748b', fontSize: '0.8rem' }}>Complexity Baseline: Execute real structured logic parameters matching objective schema requirements layers.</p>
-            <button onClick={() => alert("Spawning workspace terminals...")} style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981', padding: '0.55rem 1rem', borderRadius: '0.5rem', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}>
-              Open Code Workbench
-            </button>
-          </div>
-
-        </div>
+        )}
 
       </div>
     </div>
