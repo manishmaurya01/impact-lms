@@ -22,7 +22,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms_key_99";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6KciGm1LiEU_PmoZ71sbIRsABSVhelaDxa_AwXU2b6sLA";
 
 // --- MONGOOSE SCHEMAS & DATABASE MODELS ---
 const CourseSchema = new mongoose.Schema({
