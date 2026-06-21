@@ -24,7 +24,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms
 
 // 🚀 DUAL API KEYS GATEWAY INTEGRATION
 const GEMINI_PRIMARY_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6KciGm1LiEU_PmoZ71sbIRsABSVhelaDxa_AwXU2b6sLA";
-const GEMINI_SECONDARY_KEY = process.env.GEMINI_SECONDARY_KEY || "AQ.Ab8RN6KciGm1LiEU_PmoZ71sbIRsABSVhelaDxa_AwXU2b6sLA";
+const GEMINI_SECONDARY_KEY = process.env.GEMINI_SECONDARY_KEY || "AQ.Ab8RN6LmYRvNGBWsXCR8RNllVw3DezGE9WEZxGGsqARiHCJn6A";
 
 // --- MONGOOSE SCHEMAS & DATABASE MODELS ---
 
@@ -286,16 +286,67 @@ app.post('/api/courses/fetch-material', authorizeSessionToken, async (req, res) 
   }
 });
 
-
-// --- 🚀 BACKEND CONTROLLER: WITH INTENSE TERMINAL LOGGING ---
-app.post('/api/quiz/generate-and-save', authorizeSessionToken, async (req, res) => {
-  const { courseId, moduleId, topicName, quizName } = req.body;
-  
-  if(!courseId || !moduleId || !topicName) {
-    return res.status(400).json({ success: false, message: "Missing metadata tags." });
-  }
+// --- 🚀 BACKEND CONTROLLER: REALTIME SYSTEM ACCURACY & RESULT CHECK ENGINE ---
+app.post('/api/quiz/check-lock-state', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName } = req.body;
+  if (!courseId || !moduleId) return res.status(400).json({ success: false, message: "Missing metadata." });
 
   try {
+    // Check if quiz configuration exists for this layout node
+    const targetQuiz = await QuizData.findOne({ courseId, moduleId, topicName });
+    
+    if (!targetQuiz) {
+      return res.status(200).json({ success: true, isLocked: false, resultData: null });
+    }
+
+    // Pull verified results map instance directly matching Manish's user session ID bound
+    const activeResult = await QuizResults.findOne({ 
+      userId: req.user.userId, 
+      quizDataId: targetQuiz._id 
+    }).sort({ evaluatedAt: -1 });
+
+    if (activeResult) {
+      return res.status(200).json({
+        success: true,
+        isLocked: true,
+        resultData: {
+          total: activeResult.totalQuestions,
+          correct: activeResult.correctAnswers,
+          percentage: activeResult.scorePercentage
+        }
+      });
+    }
+
+    res.status(200).json({ success: true, isLocked: false, resultData: null });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Database handshake fault." });
+  }
+});
+
+
+// --- 🚀 BACKEND CONTROLLER: WITH INTENSE TERMINAL LOGGING ---
+// --- 🚀 BACKEND CONTROLLER: MULTI-MODAL AUTO RECOVERY SAVE SYSTEM ---
+app.post('/api/quiz/generate-and-save', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName, quizName } = req.body;
+  if(!courseId || !moduleId || !topicName) return res.status(400).json({ success: false, message: "Missing metadata tags." });
+
+  try {
+    // Check fallback guard: Agar questions already generated hain, toh recreate karke resource crash mat karo
+    let existingQuiz = await QuizData.findOne({ courseId, moduleId, topicName });
+    
+    if (existingQuiz) {
+      console.log(`💡 [QUIZ_CACHE_HIT]: Restoring persistent telemetry map array nodes from database.`);
+      
+      // Pull intermediate backup progress records if any
+      let existingResults = await QuizResults.findOne({ userId: req.user.userId, quizDataId: existingQuiz._id }).sort({ evaluatedAt: -1 });
+      
+      return res.status(200).json({ 
+        success: true, 
+        quizData: existingQuiz,
+        existingResults: existingResults || null
+      });
+    }
+
     const customSchema = {
       type: "object",
       properties: {
@@ -316,33 +367,11 @@ app.post('/api/quiz/generate-and-save', authorizeSessionToken, async (req, res) 
       required: ["questions"]
     };
 
-    const prompt = `Generate exactly 10 technical multiple-choice questions for the advanced software concept: "${topicName}". 
-    Each question must contain a unique incrementing id (1 to 10), clear questionText, an options choice list array of exactly 4 choices, and the specific correctOptionIndex (valid bounds integer 0-3).`;
+    const prompt = `Generate exactly 10 comprehensive, rigorous technical multiple-choice questions for the advanced software engineering concept: "${topicName}". Each item must have id (1-10), questionText, 4 direct options, and correctOptionIndex (0-3).`;
 
-    console.log(`🤖 [QUIZ_COMPILER]: Triggering Gemini matrix stream for topic: ${topicName}`);
-    const rawText = await callGeminiAPI(GEMINI_SECONDARY_KEY, prompt, "You are LuminaLearn's automated strict academic test writer model.", customSchema);
-    
-    // 🔥 LIVE BACKEND LOGGING CHECKPOINT
-    console.log("==================== 🔥 RAW GEMINI OUTPUT START ====================");
-    console.log(rawText);
-    console.log("==================== 🔥 RAW GEMINI OUTPUT END ======================");
-
+    const rawText = await callGeminiAPI(GEMINI_SECONDARY_KEY, prompt, "You are LuminaLearn's automated test writer module.", customSchema);
     let cleanJsonStr = rawText.trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-    let parsedQuestions;
-
-    try {
-      parsedQuestions = JSON.parse(cleanJsonStr);
-    } catch (parseErr) {
-      console.error("🚨 JSON parse failed locally. Attempting fallback repair...");
-      
-      // Force appending brackets if token payload got sliced in between
-      if (!cleanJsonStr.endsWith('}')) {
-        cleanJsonStr += ']}';
-      }
-      
-      console.log("🛠️ [REPAIRED STRING ATTEMPT]:", cleanJsonStr);
-      parsedQuestions = JSON.parse(cleanJsonStr);
-    }
+    let parsedQuestions = JSON.parse(cleanJsonStr);
 
     const newQuizRecord = new QuizData({
       courseId,
@@ -353,10 +382,10 @@ app.post('/api/quiz/generate-and-save', authorizeSessionToken, async (req, res) 
     });
 
     await newQuizRecord.save();
-    res.status(200).json({ success: true, quizData: newQuizRecord });
+    res.status(200).json({ success: true, quizData: newQuizRecord, existingResults: null });
   } catch (error) {
-    console.error("❌ Quiz generation pipeline crashed. Final Error State:", error.message);
-    res.status(500).json({ success: false, message: "Internal token compilation engine fault.", details: error.message });
+    console.error("❌ Quiz generation pipeline crashed:", error);
+    res.status(500).json({ success: false, message: "Internal token compilation fault." });
   }
 });
 
