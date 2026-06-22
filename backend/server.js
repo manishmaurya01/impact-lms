@@ -323,6 +323,119 @@ app.post('/api/quiz/check-lock-state', authorizeSessionToken, async (req, res) =
   }
 });
 
+// --- 🚀 SCHEMAS FOR ASSIGNMENTS SYSTEM CONFIGURATION ---
+const AssignmentSubmissionSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  moduleId: { type: Number, required: true },
+  topicName: { type: String, required: true },
+  assignmentType: { type: String, enum: ['CODING', 'CONCEPTUAL'], required: true },
+  
+  // Storage variants based on type mapping
+  selectedLanguage: { type: String, default: "" }, 
+  submittedCodeOrText: { type: String, required: true }, 
+  
+  // AI Metrics Vault Logs
+  aiEvaluationLog: {
+    approachScore: { type: Number, default: 0 },
+    complexityAnalysis: { type: String, default: "" },
+    architecturalCritique: { type: String, default: "" },
+    betterAlternativeTemplate: { type: String, default: "" }
+  },
+  status: { type: String, default: "Evaluated" },
+  submittedAt: { type: Date, default: Date.now }
+});
+const AssignmentSubmission = mongoose.model('AssignmentSubmission', AssignmentSubmissionSchema);
+
+// --- 🚀 ROUTER A: CHECK ASSIGNMENT SUBMISSION LOCK STATE ---
+app.post('/api/assignment/check-lock', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName } = req.body;
+  try {
+    const submission = await AssignmentSubmission.findOne({
+      userId: req.user.userId,
+      courseId,
+      moduleId,
+      topicName
+    });
+    if (submission) {
+      return res.status(200).json({ success: true, isLocked: true, data: submission });
+    }
+    res.status(200).json({ success: true, isLocked: false, data: null });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Database failure." });
+  }
+});
+
+// --- 🚀 ROUTER B: REGISTER NEW ASSIGNMENT TRANSACTION ---
+app.post('/api/assignment/submit', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName, submissionUrl } = req.body;
+  if (!submissionUrl) return res.status(400).json({ success: false, message: "Submission reference link is empty." });
+
+  try {
+    const newSubmission = new AssignmentSubmission({
+      userId: req.user.userId,
+      courseId,
+      moduleId,
+      topicName,
+      submissionUrl
+    });
+    await newSubmission.save();
+    res.status(201).json({ success: true, message: "Assignment committed successfully under cloud nodes repository." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed writing assignment record." });
+  }
+});
+app.post('/api/assignment/evaluate-via-ai', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName, assignmentType, selectedLanguage, codeOrText } = req.body;
+
+  try {
+    const aiResponseSchema = {
+      type: "object",
+      properties: {
+        approachScore: { type: "integer" },
+        complexityAnalysis: { type: "string" },
+        architecturalCritique: { type: "string" },
+        betterAlternativeTemplate: { type: "string" }
+      },
+      required: ["approachScore", "complexityAnalysis", "architecturalCritique", "betterAlternativeTemplate"]
+    };
+
+    let systemicSystemPrompt = `You are LuminaLearn's core AI compiler critic and code reviewer. Analyze the code logic or concept writeup comprehensively. 
+    Calculate optimization parameters, check design flaws, offer cleaner runtime paradigms, and give an approachScore from 1 to 100.`;
+
+    let specificUserPrompt = `
+      Topic Context: "${topicName}"
+      Assignment Type Mode: "${assignmentType}"
+      Target Enforced Language: "${selectedLanguage || 'Plain Text/HTML'}"
+      User Submitted Source Payload:
+      --------------------------------------------------
+      ${codeOrText}
+      --------------------------------------------------
+      Evaluate structure strictly according to response formats.
+    `;
+
+    console.log(`🤖 [AI_CRITIC]: Running runtime static evaluation graph for topic: ${topicName}`);
+    const rawAiFeedback = await callGeminiAPI(GEMINI_SECONDARY_KEY, specificUserPrompt, systemicSystemPrompt, aiResponseSchema);
+    const parsedFeedback = JSON.parse(rawAiFeedback);
+
+    const fullSubmissionRecord = new AssignmentSubmission({
+      userId: req.user.userId,
+      courseId,
+      moduleId,
+      topicName,
+      assignmentType,
+      selectedLanguage,
+      submittedCodeOrText: codeOrText,
+      aiEvaluationLog: parsedFeedback
+    });
+
+    await fullSubmissionRecord.save();
+    res.status(200).json({ success: true, submissionData: fullSubmissionRecord });
+  } catch (error) {
+    console.error("❌ AI Critic evaluation pipeline broken:", error);
+    res.status(500).json({ success: false, message: "System evaluation engine tracking fault." });
+  }
+});
 
 // --- 🚀 BACKEND CONTROLLER: WITH INTENSE TERMINAL LOGGING ---
 // --- 🚀 BACKEND CONTROLLER: MULTI-MODAL AUTO RECOVERY SAVE SYSTEM ---

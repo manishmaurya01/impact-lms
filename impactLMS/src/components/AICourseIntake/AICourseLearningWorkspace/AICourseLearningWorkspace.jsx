@@ -2,21 +2,26 @@ import React, { useState, useEffect } from 'react';
 import WorkspaceHeader from './modules/WorkspaceHeader';
 import ModuleSidebarTree from './modules/ModuleSidebarTree';
 import MainResourceCanvas from './modules/MainResourceCanvas';
-import TakeQuizView from '../../quiz/TakeQuizView'; 
+import TakeQuizView from '../../quiz/TakeQuizView'; // 🚀 IMPORT THE NEW SYSTEM COMPONENT
+import TakeAssignmentView from '../../Asignment/TakeAssignmentView'; // 🚀 INTERCEPTOR LAB VIEW IMPORT
 
 export default function AICourseLearningWorkspace({ courseData, onBack }) {
   const [activeModuleId, setActiveModuleId] = useState(courseData?.modules[0]?.moduleId || 1);
   const [activeTopicIndex, setActiveTopicIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('video'); 
 
-  // CORE STATE REPOSITORIES
+  // 🚀 CORE STATE REPOSITORIES
   const [activeMaterial, setActiveMaterial] = useState(null);
   const [isSyncingMaterial, setIsSyncingMaterial] = useState(false);
   const [completedTracks, setCompletedTracks] = useState({ "mod-1-topic-0": true });
   
-  // 🚀 DYNAMIC INLINE DATA CARRIERS
+  // 🚀 METRICS REPOSITORIES TELEMETRY CACHE
   const [quizResultsCache, setQuizResultsCache] = useState({});
+  const [assignmentLocksCache, setAssignmentLocksCache] = useState({});
+
+  // 🚀 ROUTING FLAGS FOR FULLSCREEN SECURITY TERMINALS
   const [quizModeActive, setQuizModeActive] = useState(false);
+  const [assignmentModeActive, setAssignmentModeActive] = useState(false); // 🚀 NEW LABORATORY CONTROLLER
 
   const modulesArray = courseData?.modules || [];
   const currentModuleIndex = modulesArray.findIndex(m => m.moduleId === activeModuleId);
@@ -24,7 +29,7 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
   
   const currentTopicName = currentModule?.topics?.[activeTopicIndex] || "No Content Available";
 
-  // 🚀 HIGH-FIDELITY CONTEXT AUTO-FETCHER SYSTEM (HITS DB DIRECTLY FOR MATERIAL + LOCKS)
+  // 🚀 INTEGRATED DATABASE STATUS AUTO-FETCHER
   const loadTopicMaterialOnDemand = async (modId, topicIdx, specificTopicName) => {
     setIsSyncingMaterial(true);
     setActiveModuleId(modId);
@@ -33,31 +38,50 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
     
     try {
       const token = localStorage.getItem('token');
+      const trackKey = `mod-${modId}-topic-${topicIdx}`;
       
-      // 1. Fetch Concept Materials Framework
-      const materialRes = await fetch('http://localhost:5000/api/courses/fetch-material', {
+      // 1. Fetch Concept Materials Layer
+      const response = await fetch('http://localhost:5000/api/courses/fetch-material', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ courseId: courseData._id, moduleId: modId, topicName: specificTopicName })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          courseId: courseData._id,
+          moduleId: modId,
+          topicName: specificTopicName
+        })
       });
-      const matJson = await materialRes.json();
-      if (matJson.success && matJson.data) setActiveMaterial(matJson.data);
+      const json = await response.json();
+      if (json.success && json.data) {
+        setActiveMaterial(json.data);
+      }
 
-      // 2. 🚀 LIVE DATABASE SECURE STATUS LOCK CHECK SYNC
+      // 2. 🚀 LIVE DATABASE QUIZ LOCK CHECK
       const lockRes = await fetch('http://localhost:5000/api/quiz/check-lock-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ courseId: courseData._id, moduleId: modId, topicName: specificTopicName })
       });
       const lockJson = await lockRes.json();
-      
-      const trackKey = `mod-${modId}-topic-${topicIdx}`;
       if (lockJson.success && lockJson.isLocked) {
         setQuizResultsCache(prev => ({ ...prev, [trackKey]: lockJson.resultData }));
       }
 
+      // 3. 🚀 LIVE DATABASE ASSIGNMENT LOCK CHECK
+      const assignRes = await fetch('http://localhost:5000/api/assignment/check-lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ courseId: courseData._id, moduleId: modId, topicName: specificTopicName })
+      });
+      const assignJson = await assignRes.json();
+      if (assignJson.success && assignJson.isLocked) {
+        setAssignmentLocksCache(prev => ({ ...prev, [trackKey]: assignJson.data.aiEvaluationLog }));
+      }
+
     } catch (err) {
-      console.error("Failed syncing material telemetry:", err);
+      console.error("Failed syncing material collection layer:", err);
     } finally {
       setIsSyncingMaterial(false);
     }
@@ -72,6 +96,7 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
   const handleTopicSelection = (modId, topicIdx) => {
     setActiveTab('video');
     setQuizModeActive(false); 
+    setAssignmentModeActive(false); // Clean flag on swap
     const targetModule = modulesArray.find(m => m.moduleId === modId);
     const targetTopicName = targetModule?.topics?.[topicIdx] || "";
     loadTopicMaterialOnDemand(modId, topicIdx, targetTopicName);
@@ -91,13 +116,29 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
     }
   };
 
+  // 🚀 CALLBACK INTERCEPT: Quiz terminal submit finished data routing
   const handleQuizSubmissionSuccess = (scorePayload) => {
     const activeTrackKey = `mod-${activeModuleId}-topic-${activeTopicIndex}`;
-    setQuizResultsCache(prev => ({ ...prev, [activeTrackKey]: scorePayload }));
+    setQuizResultsCache(prev => ({
+      ...prev,
+      [activeTrackKey]: scorePayload
+    }));
     setActiveTab('quiz'); 
     setQuizModeActive(false); 
   };
 
+  // 🚀 CALLBACK INTERCEPT: Assignment laboratory terminal submit routing
+  const handleAssignmentSubmissionSuccess = (evaluationPayload) => {
+    const activeTrackKey = `mod-${activeModuleId}-topic-${activeTopicIndex}`;
+    setAssignmentLocksCache(prev => ({
+      ...prev,
+      [activeTrackKey]: evaluationPayload
+    }));
+    setActiveTab('assignment');
+    setAssignmentModeActive(false);
+  };
+
+  // 🛑 SAFETY RENDER INTERCEPTOR A: FULLSCREEN TERMINAL QUIZ ENGINE
   if (quizModeActive) {
     return (
       <TakeQuizView 
@@ -111,32 +152,77 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
     );
   }
 
+  // 🛑 SAFETY RENDER INTERCEPTOR B: FULLSCREEN INDUSTRIAL LAB ENGINE
+  if (assignmentModeActive) {
+    return (
+      <TakeAssignmentView 
+        assignment={currentModule?.assignment}
+        topicName={currentTopicName}
+        courseId={courseData?._id}
+        moduleId={activeModuleId}
+        onBackToWorkspace={() => setAssignmentModeActive(false)}
+        onAssignmentFinished={handleAssignmentSubmissionSuccess}
+      />
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', background: '#02040a', overflow: 'hidden' }}>
-     {/* 🚀 UPGRADED REALTIME SECURE WORKSPACE HEADER IN AICourseLearningWorkspace.jsx */}
-<WorkspaceHeader 
-  courseTitle={courseData?.title} 
-  modules={modulesArray}                  // 🔥 Passing structural array for count calculations
-  completedTracks={completedTracks}        // 🔥 Passing local track indexes for dynamic verification
-  onBack={onBack} 
-/>
+      
+      {/* 🚀 FIXED SECURE HEADER WITH ACCURATE VERIFICATION DATA BINDINGS */}
+      <WorkspaceHeader 
+        courseTitle={courseData?.title} 
+        modules={modulesArray}
+        completedTracks={completedTracks}
+        onBack={onBack} 
+      />
+
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        <ModuleSidebarTree modules={modulesArray} activeModuleId={activeModuleId} activeTopicIndex={activeTopicIndex} completedTracks={completedTracks} onSelectTopic={handleTopicSelection} />
         
+        <ModuleSidebarTree 
+          modules={modulesArray} 
+          activeModuleId={activeModuleId}
+          activeTopicIndex={activeTopicIndex}
+          completedTracks={completedTracks}
+          onSelectTopic={handleTopicSelection}
+        />
+
         {isSyncingMaterial && (
           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(2, 4, 10, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-            <div style={{ width: '400px', background: '#070a12', border: '1px solid rgba(6, 182, 212, 0.25)', padding: '2.5rem 2rem', borderRadius: '1rem', textAlgin: 'center', textAlign: 'center' }}>
+            <div style={{ width: '400px', background: '#070a12', border: '1px solid rgba(6, 182, 212, 0.25)', padding: '2.5rem 2rem', borderRadius: '1rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)', textAlign: 'center' }}>
               <div style={{ margin: '0 auto 1.5rem auto', width: '44px', height: '44px', border: '3px solid rgba(6, 182, 212, 0.1)', borderTop: '3px solid #06b6d4', borderRadius: '50%', animation: 'workspaceCoreSpin 0.85s linear infinite' }} />
-              <h3 style={{ margin: '0 0 0.6rem 0', color: '#fff', fontSize: '1.2rem', fontWeight: '600' }}>Syncing Secure Telemetry Matrix</h3>
-              <p style={{ color: '#64748b', fontSize: '0.88rem' }}>Loading dynamic learning paths and system verification logs...</p>
+              <h3 style={{ margin: '0 0 0.6rem 0', color: '#fff', fontSize: '1.2rem', fontWeight: '600' }}>Syncing Workspace Telemetry</h3>
+              <p style={{ color: '#64748b', fontSize: '0.88rem', margin: '0 0 2rem 0', lineHeight: '1.4' }}>Loading dynamic learning paths and looking up server lock verification database logs...</p>
+              <div style={{ width: '100%', height: '6px', background: '#1e293b', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
+                <div style={{ position: 'absolute', height: '100%', width: '45%', background: 'linear-gradient(90deg, #06b6d4, #3b82f6)', borderRadius: '10px', animation: 'shimmerProgressBar 1.4s infinite ease-in-out' }} />
+              </div>
             </div>
-            <style>{`@keyframes workspaceCoreSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            <style>{`
+              @keyframes workspaceCoreSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+              @keyframes shimmerProgressBar { 0% { left: -50%; } 100% { left: 100%; } }
+            `}</style>
           </div>
         )}
 
+        {/* 🚀 PACKING COMPREHENSIVE COMPLIANCE DATA DIRECTLY DOWN STREAM */}
         <MainResourceCanvas 
-          topicName={currentTopicName} activeTab={activeTab} setActiveTab={setActiveTab} videoSearchQuery={activeMaterial?.videoLink || "https://www.youtube.com"} materialNotes={activeMaterial} quiz={currentModule?.quiz} assignment={currentModule?.assignment} onComplete={markTopicAsCompleted} onLaunchQuiz={() => setQuizModeActive(true)} courseId={courseData?._id} moduleId={activeModuleId}
+          topicName={currentTopicName}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          videoSearchQuery={activeMaterial?.videoLink || "https://www.youtube.com"}
+          materialNotes={activeMaterial} 
+          quiz={currentModule?.quiz} 
+          assignment={currentModule?.assignment} 
+          onComplete={markTopicAsCompleted} 
+          
+          onLaunchQuiz={() => setQuizModeActive(true)}
+          onLaunchAssignment={() => setAssignmentModeActive(true)} // Connected Launch handler
+          
+          courseId={courseData?._id}
+          moduleId={activeModuleId}
+          
           activeQuizResult={quizResultsCache[`mod-${activeModuleId}-topic-${activeTopicIndex}`]} 
+          activeAssignmentResult={assignmentLocksCache[`mod-${activeModuleId}-topic-${activeTopicIndex}`]}
         />
       </div>
     </div>
