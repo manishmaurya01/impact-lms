@@ -23,8 +23,8 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms_key_99";
 
 // 🚀 DUAL API KEYS GATEWAY INTEGRATION
-const GEMINI_PRIMARY_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6K9Rt-sg6J8kAjTTPGwmrW9CZdb-MjcsuXJqaM5LhmW5Q";
-const GEMINI_SECONDARY_KEY = process.env.GEMINI_SECONDARY_KEY || "AQ.Ab8RN6LmYRvNGBWsXCR8RNllVw3DezGE9WEZxGGsqARiHCJn6A";
+const GEMINI_PRIMARY_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_SECONDARY_KEY = process.env.GEMINI_SECONDARY_KEY;
 
 // --- MONGOOSE SCHEMAS & DATABASE MODELS ---
 
