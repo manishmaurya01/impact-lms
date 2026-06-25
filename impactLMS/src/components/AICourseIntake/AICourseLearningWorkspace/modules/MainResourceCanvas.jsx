@@ -3,6 +3,7 @@ import {
   BarChart3, Lock, Cpu, Clock, BookOpen, CheckCircle2, 
   XCircle, HelpCircle, Terminal, Sparkles, Volume2, VolumeX, Play, Pause, Monitor, SkipForward, SkipBack
 } from 'lucide-react';
+import NotesPage from '../../../Notes/NotesPage'; // 👈 NotesPage ko yahan direct import kar liya
 
 export default function MainResourceCanvas({ 
   topicName, 
@@ -21,6 +22,9 @@ export default function MainResourceCanvas({
   activeAssignmentResult 
 }) {
 
+  // --- POPUP OVERLAY STATE ---
+  const [isNotesPopupOpen, setIsNotesPopupOpen] = useState(false); // 👈 Local Popup State Control
+
   // --- AI ANIMATED TEACHER NATURAL SPEECH STATES ---
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -31,7 +35,7 @@ export default function MainResourceCanvas({
   const currentUtteranceRef = useRef(null);
   const pauseTimeoutRef = useRef(null);
 
-  // Extract text from HTML structure cleanly and slice it by natural breaks (commas, semicolons, fullstops)
+  // Extract text from HTML structure cleanly and slice it by natural breaks
   useEffect(() => {
     if (!materialNotes?.htmlContent) {
       setPhrases(["Initializing course telemetry board..."]);
@@ -41,7 +45,6 @@ export default function MainResourceCanvas({
     tempDiv.innerHTML = materialNotes.htmlContent;
     const rawText = tempDiv.innerText || tempDiv.textContent || "";
     
-    // Split sentences using a regex that breaks on periods, question marks, and semi-colons for natural breath control
     const cleanPhrases = rawText
       .split(/[.!?;\n]+/)
       .map(p => p.trim())
@@ -65,11 +68,9 @@ export default function MainResourceCanvas({
     setCurrentPhraseIndex(index);
     const phraseText = phrases[index];
 
-    // Web Speech API execution instance configuration
     const utterance = new SpeechSynthesisUtterance(phraseText);
     currentUtteranceRef.current = utterance;
 
-    // Prioritize clean Indian English voice accent for localized clear pronunciation rules
     const voices = window.speechSynthesis.getVoices();
     const clearIndianEnglishVoice = voices.find(v => v.lang.includes('en-IN')) || 
                                    voices.find(v => v.lang.includes('en-GB')) || 
@@ -79,9 +80,8 @@ export default function MainResourceCanvas({
       utterance.voice = clearIndianEnglishVoice;
     }
     
-    // 🧠 Natural Cadence Settings: Lower pitch and normal speech rate prevents the robotic rush
-    utterance.rate = 0.92; // Slightly paced down to ensure high clarity of complex software structures
-    utterance.pitch = 0.98; // Human conversational pitch depth adjustment
+    utterance.rate = 0.92; 
+    utterance.pitch = 0.98; 
     utterance.volume = isMuted ? 0 : 1;
 
     utterance.onstart = () => {
@@ -90,7 +90,6 @@ export default function MainResourceCanvas({
     };
 
     utterance.onend = () => {
-      // 🧘 NATURAL BREATH HOOK: Introduces a explicit 600ms conversational pause at the end of each line/full stop
       setAvatarExpression('idle');
       pauseTimeoutRef.current = setTimeout(() => {
         const nextIndex = index + 1;
@@ -99,7 +98,7 @@ export default function MainResourceCanvas({
         } else {
           setIsPlaying(false);
         }
-      }, 600); // 0.6 seconds pause between sentences simulation
+      }, 600); 
     };
 
     utterance.onerror = () => {
@@ -159,18 +158,35 @@ export default function MainResourceCanvas({
   const accuracyPercentage = activeQuizResult?.percentage || 0;
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#02040a', padding: '2rem', overflowY: 'auto', color: '#fff', fontFamily: '"Inter", sans-serif' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#02040a', padding: '2rem', overflowY: 'auto', color: '#fff', fontFamily: '"Inter", sans-serif', position: 'relative' }}>
       
       {/* 🚀 Dynamic Navigation Tabs Navbar Header Element */}
-      <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #1e293b', paddingBottom: '1rem', marginBottom: '2rem' }}>
-        <button onClick={() => setActiveTab('video')} style={{ background: activeTab === 'video' ? 'rgba(6,182,212,0.05)' : 'transparent', border: 'none', color: activeTab === 'video' ? '#06b6d4' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px' }}>
-          By-Topic Smart Lecture Masterclass
-        </button>
-        <button onClick={() => setActiveTab('quiz')} style={{ background: activeTab === 'quiz' ? 'rgba(245,158,11,0.05)' : 'transparent', border: 'none', color: activeTab === 'quiz' ? '#f59e0b' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px' }}>
-          ⚡ Quiz Evaluation
-        </button>
-        <button onClick={() => setActiveTab('assignment')} style={{ background: activeTab === 'assignment' ? 'rgba(16,185,129,0.05)' : 'transparent', border: 'none', color: activeTab === 'assignment' ? '#10b981' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px' }}>
-          🛠️ Assignment Challenge
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button onClick={() => setActiveTab('video')} style={{ background: activeTab === 'video' ? 'rgba(6,182,212,0.05)' : 'transparent', border: 'none', color: activeTab === 'video' ? '#06b6d4' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px' }}>
+            By-Topic Smart Lecture Masterclass
+          </button>
+          <button onClick={() => setActiveTab('quiz')} style={{ background: activeTab === 'quiz' ? 'rgba(245,158,11,0.05)' : 'transparent', border: 'none', color: activeTab === 'quiz' ? '#f59e0b' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px' }}>
+            ⚡ Quiz Evaluation
+          </button>
+          <button onClick={() => setActiveTab('assignment')} style={{ background: activeTab === 'assignment' ? 'rgba(16,185,129,0.05)' : 'transparent', border: 'none', color: activeTab === 'assignment' ? '#10b981' : '#64748b', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px' }}>
+            🛠️ Assignment Challenge
+          </button>
+        </div>
+
+        {/* 📚 NEW POPUP TRIGGER: Is button par click karte hi popup open ho jayega */}
+        <button 
+          onClick={() => setIsNotesPopupOpen(true)} 
+          style={{ 
+            background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.4)', 
+            color: '#06b6d4', padding: '0.5rem 1.2rem', cursor: 'pointer', 
+            fontWeight: 'bold', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem',
+            transition: 'all 200ms ease'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#06b6d4'; e.currentTarget.style.color = '#000'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(6,182,212,0.1)'; e.currentTarget.style.color = '#06b6d4'; }}
+        >
+          <BookOpen size={16} /> Open Workspace Notes
         </button>
       </div>
 
@@ -300,7 +316,7 @@ export default function MainResourceCanvas({
               </div>
             ) : (
               <div style={{ color: '#475569', textAlign: 'center', padding: '4rem', border: '1px dashed #1e293b', borderRadius: '8px' }}>
-                🔄 Compiling raw concept blueprints logs from server mesh...
+                {"\uD83D\uDCC4"} Compiling raw concept blueprints logs from server mesh...
               </div>
             )}
 
@@ -454,6 +470,25 @@ export default function MainResourceCanvas({
         )}
 
       </div>
+
+      {/* 🌌 MODAL POPUP PORTAL SYSTEM LINK */}
+      {isNotesPopupOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(2, 4, 10, 0.85)', backdropFilter: 'blur(12px)',
+          width: '100vw', height: '100vh'
+        }}>
+          <NotesPage 
+            isModal={true} 
+            onClose={() => setIsNotesPopupOpen(false)} // Close click handle loop
+            activeCourseContext={{
+              courseId: courseId,
+              moduleId: moduleId
+            }}
+          />
+        </div>
+      )}
       
       {/* 🚀 CSS ANIMATIONS OVERLAYS */}
       <style>{`

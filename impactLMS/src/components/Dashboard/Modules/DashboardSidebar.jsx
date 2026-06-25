@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Menu, X, LayoutDashboard, Sparkles, FolderOpen, 
-  BookOpen, LogOut, BadgeCheck, FileCode2, ClipboardCheck 
+  BookOpen, LogOut, BadgeCheck, MessageSquareCode 
 } from 'lucide-react';
 
 export default function DashboardSidebar({ onLogout }) {
@@ -25,13 +25,13 @@ export default function DashboardSidebar({ onLogout }) {
         flexDirection: 'column',
         background: '#0f172a',
         borderRight: '1px solid rgba(30, 41, 59, 0.8)',
-        padding: isExpanded ? '1.25rem 0.85rem' : '1.25rem 0', // Fixed: Remove side padding on collapse for centering
+        padding: isExpanded ? '1.25rem 0.85rem' : '1.25rem 0',
         height: '100vh',
         position: 'relative',
         zIndex: 100,
         boxShadow: '10px 0 30px rgba(0,0,0,0.4)',
         overflowX: 'hidden',
-        alignItems: 'center' // Fixed: Align children container nodes globally on center cross-axis
+        alignItems: 'center'
       }}
     >
       {/* 🛠️ CONTROL HEADER PANEL TRIGGER */}
@@ -71,7 +71,7 @@ export default function DashboardSidebar({ onLogout }) {
             justifyContent: 'center', 
             outline: 'none',
             width: '38px',
-            height: '38px' // Fixed: Force explicit sizes so it stays perfectly boxed when collapsed
+            height: '38px'
           }}
         >
           {isExpanded ? <X size={18} /> : <Menu size={18} />}
@@ -91,14 +91,14 @@ export default function DashboardSidebar({ onLogout }) {
           {isExpanded && <span>Dashboard Hub</span>}
         </button>
 
-        {/* 2. Generate Path */}
+        {/* 2. AI Interviewer (नया जोड़ा गया) */}
         <button 
-          onClick={() => navigate('/assignments')} 
-          className={`nav-link-item ${isActive('/assignments')}`}
+          onClick={() => navigate('/interview')} 
+          className={`nav-link-item ${isActive('/interview')}`}
           style={{ display: 'flex', alignItems: 'center', justifyContent: isExpanded ? 'flex-start' : 'center', gap: isExpanded ? '0.85rem' : '0', width: '100%', padding: '0.85rem', whiteSpace: 'nowrap', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
         >
-          <Sparkles size={18} style={{ color: pathname === '/assignments' ? '#06B6D4' : 'inherit', flexShrink: 0 }} />
-          {isExpanded && <span>Generate Path</span>}
+          <MessageSquareCode size={18} style={{ color: pathname === '/interview' ? '#06B6D4' : 'inherit', flexShrink: 0 }} />
+          {isExpanded && <span>AI Interviewer</span>}
         </button>
 
         {/* 3. Manage Courses & History */}
@@ -111,27 +111,7 @@ export default function DashboardSidebar({ onLogout }) {
           {isExpanded && <span>Courses & History</span>}
         </button>
 
-        {/* 4. Live Core Assignments */}
-        <button 
-          onClick={() => navigate('/assignments-engine')} 
-          className={`nav-link-item ${isActive('/assignments-engine')}`}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: isExpanded ? 'flex-start' : 'center', gap: isExpanded ? '0.85rem' : '0', width: '100%', padding: '0.85rem', whiteSpace: 'nowrap', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-        >
-          <FileCode2 size={18} style={{ color: pathname === '/assignments-engine' ? '#10B981' : 'inherit', flexShrink: 0 }} />
-          {isExpanded && <span>Assignments Cluster</span>}
-        </button>
-
-        {/* 5. Adaptive Quiz Matrix */}
-        <button 
-          onClick={() => navigate('/quizzes')} 
-          className={`nav-link-item ${isActive('/quizzes')}`}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: isExpanded ? 'flex-start' : 'center', gap: isExpanded ? '0.85rem' : '0', width: '100%', padding: '0.85rem', whiteSpace: 'nowrap', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-        >
-          <ClipboardCheck size={18} style={{ color: pathname === '/quizzes' ? '#F59E0B' : 'inherit', flexShrink: 0 }} />
-          {isExpanded && <span>AI Adaptive Quizzes</span>}
-        </button>
-
-        {/* 6. Cloud Notes Repository */}
+        {/* 4. Cloud Notes Repository */}
         <button 
           onClick={() => navigate('/notes')} 
           className={`nav-link-item ${isActive('/notes')}`}
@@ -179,7 +159,7 @@ export default function DashboardSidebar({ onLogout }) {
             color: '#ef4444', 
             borderRadius: '0.5rem', 
             cursor: 'pointer',
-            margin: '0 auto' // Fixed: Centers logout button trace when width shrinks
+            margin: '0 auto'
           }}
         >
           <LogOut size={16} style={{ flexShrink: 0 }} /> 

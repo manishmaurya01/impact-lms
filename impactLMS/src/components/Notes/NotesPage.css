@@ -1,569 +1,246 @@
-/* --- PREMIUM MODERN DARK GLASSMORPHIC STUDIO THEME --- */
-
-.notes-system-wrapper {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.notes-system-wrapper.fullscreen-view {
-  width: 100vw;
-  height: 100vh;
-  background: radial-gradient(circle at top right, #1a1f29, #090d16);
-  color: #f0f6fc;
-  display: flex;
-  padding: 24px;
-  box-sizing: border-box;
-}
-
-.notes-system-wrapper.modal-view {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 99999;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.notes-blur-overlay {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: rgba(4, 7, 13, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  animation: fadeIn 0.3s ease;
-}
-
-.notes-panel-container {
-  position: relative;
-  background: rgba(13, 17, 23, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
-  animation: slideLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.notes-system-wrapper.fullscreen-view .notes-panel-container {
-  width: 100%;
-  height: 100%;
-  border-radius: 16px;
-  border: 1px solid #21262d;
-}
-
-.notes-system-wrapper.modal-view .notes-panel-container {
-  width: 45%; /* Sleek sliding sidebar profile */
-  height: 100%;
-  border-left: 1px solid rgba(88, 166, 255, 0.2);
-}
-
-/* Header UI Elements */
-.notes-workspace-header {
-  padding: 20px 24px;
-  background: #161b22;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.notes-workspace-header h2 {
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.5px;
-  background: linear-gradient(90deg, #58a6ff, #bc8cff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.notes-workspace-header .badge {
-  font-size: 11px;
-  background: rgba(88, 166, 255, 0.15);
-  color: #58a6ff;
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid rgba(88, 166, 255, 0.3);
-  margin-left: 8px;
-  vertical-align: middle;
-}
-
-/* Workspace Structure layout */
-.notes-workspace-body {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-
-/* Sidebar context configuration panel */
-.notes-sidebar-controls {
-  width: 280px;
-  background: #0d1117;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.notes-sidebar-controls label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #8b949e;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 8px;
-}
-
-.notes-sidebar-controls select {
-  background: #161b22;
-  border: 1px solid #30363d;
-  padding: 12px;
-  border-radius: 8px;
-  color: #c9d1d9;
-  font-size: 13px;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.notes-sidebar-controls select:focus {
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 2px rgba(56, 139, 253, 0.2);
-}
-
-/* Notebook Vault Storage view */
-.history-vault-section {
-  margin-top: 24px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.history-vault-section h4 {
-  font-size: 13px;
-  color: #8b949e;
-  margin-bottom: 12px;
-}
-
-.history-list {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.note-history-card {
-  padding: 14px;
-  background: rgba(22, 27, 34, 0.6);
-  border: 1px solid #21262d;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.note-history-card:hover {
-  background: #21262d;
-  border-color: #8b949e;
-  transform: translateY(-1px);
-}
-
-.note-history-card.active-track {
-  background: rgba(31, 42, 55, 0.7);
-  border-color: #58a6ff;
-  box-shadow: inset 3px 0 0 #58a6ff;
-}
-
-.note-history-card h5 {
-  font-size: 13px;
-  color: #f0f6fc;
-  margin: 0 0 6px 0;
-  font-weight: 500;
-}
-
-.note-history-card span {
-  font-size: 11px;
-  color: #8b949e;
-}
-
-/* --- THE MS-WORD INSPIRED WHITE CANVAS ARCHITECTURE --- */
-.notes-word-editor-arena {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  color: #1f2328;
-}
-
-.note-title-field {
-  width: 100%;
-  padding: 24px 32px;
-  font-size: 24px;
-  font-weight: 700;
-  border: none;
-  border-bottom: 1px solid #d0d7de;
-  outline: none;
-  background: #f6f8fa;
-  color: #24292f;
-  letter-spacing: -0.5px;
-}
-
-.word-processor-toolbar {
-  background: #ffffff;
-  padding: 10px 32px;
-  border-bottom: 1px solid #d0d7de;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.word-processor-toolbar button {
-  background: transparent;
-  border: 1px solid transparent;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #424a53;
-  transition: all 0.15s;
-}
-
-.word-processor-toolbar button:hover {
-  background: #eaeef2;
-  color: #1f2328;
-}
-
-.word-processor-toolbar .separator {
-  width: 1px;
-  height: 18px;
-  background: #d0d7de;
-  margin: 0 4px;
-}
-
-/* Premium Readable White Workspace Paper */
-.word-editable-canvas {
-  flex: 1;
-  padding: 40px 50px;
-  overflow-y: auto;
-  outline: none;
-  font-family: 'Segoe UI', Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
-  color: #1f2328;
-}
-
-/* Beautiful styles for injected codes inside white paper context */
-.word-editable-canvas pre {
-  background: #f6f8fa;
-  padding: 16px;
-  border-radius: 8px;
-  font-family: 'SFMono-Regular', Consolas, monospace;
-  font-size: 14px;
-  border: 1px solid #d0d7de;
-  margin: 12px 0;
-  color: #24292f;
-}
-
-/* Action Trigger Utilities */
-.btn-primary {
-  background: #238636;
-  color: #ffffff;
-  border: 1px solid rgba(240, 246, 252, 0.1);
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 500;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-primary:hover { background: #2ea043; }
-
-.btn-secondary {
-  background: #21262d;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 500;
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn-secondary:hover { background: #30363d; border-color: #8b949e; }
-
-.btn-close {
-  background: transparent;
-  color: #8b949e;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 4px 8px;
-}
-.btn-close:hover { color: #f0f6fc; }
-
-/* Floating action trigger on course detail panel */
-.floating-notes-trigger {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  background: linear-gradient(135deg, #238636, #1f6feb);
-  color: white;
-  border: none;
-  padding: 14px 24px;
-  border-radius: 50px;
-  font-weight: 600;
-  box-shadow: 0 10px 25px rgba(31, 111, 235, 0.4);
-  cursor: pointer;
-  z-index: 9999;
-  transition: transform 0.2s;
-}
-.floating-notes-trigger:hover {
-  transform: scale(1.05);
-}
-
-/* Animations Core Matrix */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
-
-
-
-
 /* ==========================================================================
-   Lumina Studio Notes System Architecture Core Stylesheet
+   LuminaLearn Studio - High-Fidelity Production Design System Matrix
    ========================================================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap');
+
 .notes-system-wrapper {
-  font-family: 'Inter', sans-serif;
-  color: #f1f5f9;
-  width: 100%;
-  height: 100%;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #f8fafc;
+  width: 100vw;
+  height: 100vh;
   display: flex;
-  position: relative;
+  box-sizing: border-box;
+  background: #020617; /* Nebula Underlay */
+  overflow: hidden;
 }
 
-/* Modal Specific Layout Controls Override Matrix */
+/* 🌌 Ultra-Premium Modal Portal Overlay */
 .notes-system-wrapper.modal-view {
+  position: fixed;
+  inset: 0;
   align-items: center;
   justify-content: center;
+  z-index: 999999;
 }
 
 .notes-system-wrapper.modal-view .notes-blur-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(2, 4, 10, 0.4);
+  background: rgba(2, 6, 23, 0.7);
+  backdrop-filter: blur(12px);
   z-index: 1;
 }
 
+/* Symmetrical Bounding Obsidian Glass Grid Container */
 .notes-system-wrapper.modal-view .notes-panel-container {
   position: relative;
-  width: 92vw;
-  max-width: 1360px;
+  width: 94vw;
+  max-width: 1540px;
   height: 88vh;
-  background: #070a13;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
+  background: rgba(15, 23, 42, 0.85); /* Dark Obsidian Slate with glassmorphism */
+  border: 1px solid #1e293b; /* Sharp tech borders */
+  border-radius: 16px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9);
   z-index: 2;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: modalSlideUpScale 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modalScaleReveal 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Fullscreen Specific Rule Controls */
-.notes-system-wrapper.fullscreen-view .notes-blur-overlay {
-  display: none;
-}
 .notes-system-wrapper.fullscreen-view .notes-panel-container {
   width: 100%;
-  height: 100vh;
-  background: #02040a;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  background: #020617;
 }
 
-/* Header Node Controls */
+/* 💻 Futuristic Cinematic Header Module */
 .notes-workspace-header {
-  padding: 1.25rem 2rem;
-  background: #090d16;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  height: 76px;
+  padding: 0 2rem;
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid #1e293b;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
 }
 
 .notes-workspace-header h2 {
   font-size: 1.25rem;
   font-weight: 800;
   margin: 0;
+  letter-spacing: -0.02em; /* Tight premium product look */
+  color: #f8fafc;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .notes-workspace-header .badge {
-  font-size: 0.7rem;
-  font-family: monospace;
-  background: rgba(6, 182, 212, 0.1);
-  color: #06b6d4;
-  border: 1px solid rgba(6, 182, 212, 0.2);
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  font-size: 0.68rem;
+  font-family: 'Fira Code', monospace;
+  background: rgba(139, 92, 246, 0.12); /* AI Processing Secondary */
+  color: #8B5CF6;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
+/* Premium Control Buttons Engine */
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 0.75rem;
 }
 
 .header-actions button {
-  padding: 0.5rem 1rem;
-  font-weight: 700;
+  height: 40px;
+  padding: 0 1.25rem;
   font-size: 0.85rem;
-  border-radius: 6px;
+  font-weight: 600;
+  border-radius: 8px; /* Control geometry */
+  border: 1px solid transparent;
   cursor: pointer;
-  border: none;
-  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 250ms ease-in-out;
 }
 
-.btn-primary { background: #06b6d4; color: #000; }
-.btn-primary:hover { background: #22d3ee; }
-.btn-secondary { background: #1e293b; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.02) !important; }
-.btn-secondary:hover { background: #334155; color: #fff; }
-.btn-close { background: #ef4444; color: #fff; }
-.btn-close:hover { background: #f87171; }
+.btn-primary { 
+  background: #06B6D4; /* High Energy Cyan Accent */
+  color: #020617; 
+  font-weight: 700;
+}
+.btn-primary:hover { 
+  background: #22d3ee;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); /* Subtle glowing anomaly on active state */
+}
 
-/* Workspace Structural Body Grid */
+.btn-secondary { 
+  background: rgba(30, 41, 59, 0.5); 
+  color: #f8fafc; 
+  border: 1px solid #1e293b !important; 
+}
+.btn-secondary:hover { 
+  background: rgba(51, 65, 85, 0.6); 
+  border-color: #06B6D4 !important;
+}
+
+.btn-close { 
+  background: rgba(239, 68, 68, 0.1); 
+  color: #f87171; 
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+.btn-close:hover { 
+  background: #ef4444; 
+  color: #fff;
+}
+
+/* 📐 3-COLUMN PROFESSIONAL IDE GRID MATRIX OVERHAUL */
 .notes-workspace-body {
   flex: 1;
   display: flex;
+  height: calc(100% - 76px);
+  box-sizing: border-box;
   overflow: hidden;
 }
 
-/* Sidebar Component Navigation Node Mapping Columns */
+/* --- COLUMN 1: LEFT TELEMETRY CONTROLLER PANEL --- */
 .notes-sidebar-controls {
   width: 320px;
-  background: #05080f;
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
-  padding: 1.5rem;
+  min-width: 320px;
+  background: rgba(15, 23, 42, 0.4);
+  border-right: 1px solid #1e293b;
+  padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
+  box-sizing: border-box;
 }
 
 .notes-sidebar-controls label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: #64748b;
+  color: #94a3b8; /* Text Secondary */
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  margin-bottom: -0.5rem;
 }
 
+/* Transparent backgrounds layered over dark slate inputs */
 .notes-sidebar-controls select {
   width: 100%;
-  background: #0d131f;
+  height: 42px;
+  background: rgba(2, 6, 23, 0.5);
   border: 1px solid #1e293b;
-  color: #fff;
-  padding: 0.6rem;
-  border-radius: 6px;
+  color: #f8fafc;
+  padding: 0 1rem;
+  border-radius: 8px;
   outline: none;
   font-size: 0.88rem;
+  box-sizing: border-box;
+  transition: all 250ms ease-in-out;
+}
+
+.notes-sidebar-controls select:focus {
+  border-color: #06B6D4;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.15);
 }
 
 .notes-sidebar-controls select:disabled {
-  opacity: 0.4;
+  opacity: 0.25;
   cursor: not-allowed;
 }
 
-/* Vault History List Repositories */
-.history-vault-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  margin-top: 1rem;
-  overflow: hidden;
-}
-
-.history-vault-section h4 {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  margin: 0 0 0.75rem 0;
-  text-transform: uppercase;
-}
-
-.history-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding-right: 4px;
-}
-
-.note-history-card {
-  background: #090d16;
-  border: 1px solid rgba(255, 255, 255, 0.02);
-  padding: 0.85rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.note-history-card:hover {
-  background: #0d1527;
-  border-color: rgba(255,255,255,0.08);
-}
-
-.note-history-card.active-track {
-  background: rgba(6, 182, 212, 0.04);
-  border-color: #06b6d4;
-}
-
-.note-history-card h5 { margin: 0 0 0.35rem 0; font-size: 0.9rem; color: #fff; font-weight: 600; }
-.note-history-card span { font-size: 0.72rem; color: #475569; display: block; font-weight: 500; }
-.empty-alert { font-size: 0.8rem; color: #334155; text-align: center; margin-top: 2rem; font-style: italic; }
-
-/* Right Text Processing Engine Workspace */
+/* --- COLUMN 2: CENTER MATRIX PROCESSING TEXT CANVAS --- */
 .notes-word-editor-arena {
   flex: 1;
-  background: #02040a;
+  background: rgba(2, 6, 23, 0.3);
   display: flex;
   flex-direction: column;
   padding: 2rem;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .note-title-field {
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid #1e293b;
   font-size: 1.5rem;
   font-weight: 800;
-  color: #fff;
+  color: #f8fafc;
   padding-bottom: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   outline: none;
   width: 100%;
+  letter-spacing: -0.02em;
+  box-sizing: border-box;
+  transition: border-color 250ms ease-in-out;
 }
 
-/* Text Processing Toolbar System */
+.note-title-field:focus {
+  border-color: #06B6D4;
+}
+
+/* Minimalist Integrated Command Bar Toolbar Layout */
 .word-processor-toolbar {
-  background: #090d16;
+  background: #0f172a;
   border: 1px solid #1e293b;
-  padding: 0.5rem;
+  padding: 0.45rem;
   border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 0.25rem;
   margin-bottom: 1.25rem;
+  box-sizing: border-box;
 }
 
 .word-processor-toolbar button {
@@ -572,58 +249,355 @@
   color: #94a3b8;
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.88rem;
+  transition: all 200ms ease-in-out;
 }
 
 .word-processor-toolbar button:hover {
-  background: #131b2e;
-  color: #fff;
+  background: rgba(6, 182, 212, 0.08);
+  color: #06B6D4;
 }
 
 .word-processor-toolbar .separator {
   color: #1e293b;
   margin: 0 0.4rem;
-  font-size: 0.9rem;
 }
 
-/* Rich Live Sandbox Canvas Core */
+/* Cyber Edit Matrix Room Canvas Layer */
 .word-editable-canvas {
   flex: 1;
-  background: #04060a;
-  border: 1px solid rgba(255, 255, 255, 0.02);
-  border-radius: 10px;
-  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 1.75rem;
   outline: none;
   overflow-y: auto;
   color: #cbd5e1;
   font-size: 1rem;
-  line-height: 1.7;
+  line-height: 1.75;
+  box-sizing: border-box;
 }
 
 .word-editable-canvas pre {
-  background: #090d16;
-  padding: 1rem;
-  border-radius: 6px;
+  background: #020617;
+  padding: 1.25rem;
+  border-radius: 8px;
   font-family: 'Fira Code', monospace;
   font-size: 0.85rem;
-  color: #a7f3d0;
+  color: #34d399;
   overflow-x: auto;
-  border: 1px solid rgba(255,255,255,0.02);
+  border: 1px solid rgba(52, 211, 153, 0.15);
 }
 
-/* Keyframe Core Animations Systems */
-@keyframes modalSlideUpScale {
-  from { opacity: 0; transform: scale(0.96) translateY(20px); }
+/* --- COLUMN 3: RIGHT LEDGER NOTEBOOK VAULT --- */
+.history-vault-section {
+  width: 300px;
+  min-width: 300px;
+  background: rgba(15, 23, 42, 0.2);
+  border-left: 1px solid #1e293b;
+  padding: 2rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.history-vault-section h4 {
+  font-size: 0.72rem;
+  color: #06B6D4; /* High Energy Accent header */
+  margin: 0 0 1.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Professional High Fidelity Cards Matrix */
+.note-history-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid #1e293b;
+  padding: 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.note-history-card:hover {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(6, 182, 212, 0.3);
+  transform: translateY(-1px);
+}
+
+.note-history-card.active-track {
+  background: rgba(6, 182, 212, 0.05);
+  border-color: #06B6D4;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+}
+
+.note-history-card h5 { 
+  margin: 0 0 0.4rem 0; 
+  font-size: 0.9rem; 
+  color: #f8fafc; 
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.note-history-card span { 
+  font-size: 0.72rem; 
+  color: #94a3b8; /* Text Secondary */
+  display: block; 
+}
+
+.empty-alert { 
+  font-size: 0.8rem; 
+  color: #94a3b8; 
+  text-align: center; 
+  padding-top: 2rem; 
+  font-style: italic; 
+}
+
+/* --- TELEMETRY SLIDER SCROLLBAR CONTROL ENGINE --- */
+.history-list::-webkit-scrollbar, .word-editable-canvas::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.history-list::-webkit-scrollbar-track, .word-editable-canvas::-webkit-scrollbar-track {
+  background: transparent;
+}
+.history-list::-webkit-scrollbar-thumb, .word-editable-canvas::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}
+.history-list::-webkit-scrollbar-thumb:hover, .word-editable-canvas::-webkit-scrollbar-thumb:hover {
+  background: #06B6D4;
+}
+
+@keyframes modalScaleReveal {
+  from { opacity: 0; transform: scale(0.97) translateY(10px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+/* ==========================================================================
+   LuminaLearn Studio - Symmetrical 1-Line Vertical Alignment Grid
+   ========================================================================== */
 
-@keyframes fadeInAlpha {
-  from { background: rgba(2, 4, 10, 0); }
-  to { background: rgba(2, 4, 10, 0.75); }
+.notes-workspace-header {
+  height: 74px;
+  min-height: 74px;
+  padding: 0 2rem;
+  background: #090d16; /* Deep Slate Black Base */
+  border-bottom: 1px solid #1e293b; /* Sharp Tech Slate Gray Border */
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* 👈 Isko absolute center line par block kiya */
+  box-sizing: border-box;
+  position: relative;
+  z-index: 10;
+}
+
+/* Left Group Block Alignment */
+.header-identity-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+
+.notes-workspace-header h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2; /* Line-height lock to prevent shift */
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon-telemetry {
+  color: #06B6D4;
+  display: flex;
+  align-items: center;
+}
+
+.sub-telemetry-text {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin: 0.15rem 0 0 0;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* ⚙️ CENTER GROUP CONTROLS (Strictly Locked on a Single Row) */
+.header-actions {
+  display: flex;
+  flex-direction: row; /* Force absolute single row */
+  align-items: center;  /* 👈 Dono buttons ek line me centers par rahenge */
+  justify-content: center;
+  gap: 0.75rem; 
+  height: 100%;
+}
+
+.header-actions button {
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  padding: 0 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px; 
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  align-items: center;    /* Icons aur texts ko button ke andar vertical align karega */
+  justify-content: center;
+  gap: 0.4rem; 
+  box-sizing: border-box;
+  transition: all 200ms ease-in-out;
+}
+
+/* Primary Action: Commit Sync Node */
+.btn-primary { 
+  background: #06B6D4; 
+  color: #020617; 
+  font-weight: 700;
+  border: 1px solid #06B6D4;
+}
+.btn-primary:hover { 
+  background: #22d3ee;
+  border-color: #22d3ee;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.3); 
+}
+
+/* Secondary Action: New Workspace Node */
+.btn-secondary { 
+  background: rgba(30, 41, 59, 0.3); 
+  color: #f8fafc; 
+  border: 1px solid #1e293b !important; 
+}
+.btn-secondary:hover { 
+  background: rgba(30, 41, 59, 0.6);
+  border-color: #06B6D4 !important; 
+  color: #fff;
+}
+
+/* 👤 RIGHT USER IDENTITY ZONE */
+.header-user-profile-zone {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 100%;
+}
+
+.user-meta-details {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b;
+  padding: 0 1rem;
+  border-radius: 8px;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+.user-status-dot {
+  width: 6px;
+  height: 6px;
+  background: #06B6D4;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #06B6D4;
+}
+
+.user-profile-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* Symmetrical Tech Close Button Alignment */
+.notes-workspace-header .btn-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: #f87171;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 200ms ease-in-out;
+}
+.notes-workspace-header .btn-close:hover {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444 !important;
+}
+
+/* ⚡ In rules ko apni CSS file ke top/header segment me append karlein */
+
+.header-left-cluster {
+  display: flex;
+  align-items: center; /* Strict vertical center alignment mapping */
+  gap: 1.25rem; /* Precise spacing between back button and branding text */
+  height: 100%;
+}
+
+/* 💻 ULTRA-PREMIUM SLATE BLACK BACK BUTTON STYLE */
+.btn-header-back {
+  height: 36px;
+  padding: 0 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8; /* Text Secondary Muted Slate */
+  background: rgba(30, 41, 59, 0.4); /* Transparent Obsidian Slate */
+  border: 1px solid #1e293b; /* Sharp Tech Border Token */
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  box-sizing: border-box;
+  transition: all 200ms ease-in-out;
+}
+
+.btn-header-back .arrow-glyph {
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #94a3b8;
+  transition: transform 200ms ease-in-out;
+}
+
+/* Premium High Fidelity Interactive Hover Trace */
+.btn-header-back:hover {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: #06B6D4; /* Primary Energy Cyan outline trace */
+  color: #fff;
+}
+
+.btn-header-back:hover .arrow-glyph {
+  color: #06B6D4;
+  transform: translateX(-2px); /* Smooth micro-interaction on hover state */
 }
