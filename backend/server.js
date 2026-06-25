@@ -20,7 +20,7 @@ app.use(cors({
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms_key_99";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // 🚀 DUAL API KEYS GATEWAY INTEGRATION
 const GEMINI_PRIMARY_KEY = process.env.GEMINI_API_KEY;
