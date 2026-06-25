@@ -7,24 +7,36 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
 
 // --- CROSS-ORIGIN RESOURCE SHARING (CORS) SETTINGS ---
+// Recommended: Replace '*' with process.env.FRONTEND_URL in production
 app.use(cors({
-  origin: '*', 
+  origin: process.env.FRONTEND_URL || '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "super_secret_cognitive_quantum_lms_key_99";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBUIaoxR8p1li_EjoQ9QitqVskWKgx2jE0";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// 🚀 DUAL API KEYS GATEWAY INTEGRATION
+const GEMINI_PRIMARY_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_SECONDARY_KEY = process.env.GEMINI_SECONDARY_KEY;
 
 // --- MONGOOSE SCHEMAS & DATABASE MODELS ---
+
+const UserSchema = new mongoose.Schema({
+  fullName: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const User = mongoose.model('User', UserSchema);
+
 const CourseSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true },
@@ -35,10 +47,10 @@ const CourseSchema = new mongoose.Schema({
     moduleId: Number,
     moduleName: String,
     objective: String,
-    topics: [String],
-    youtubeSearchQuery: String,
     shortSummary: String,
-    visualGuidelines: String, 
+    visualGuidelines: String,
+    youtubeSearchQuery: String,
+    topics: [String], 
     quiz: {
       name: String,
       quizTopic: String,
@@ -52,37 +64,89 @@ const CourseSchema = new mongoose.Schema({
   }],
   createdAt: { type: Date, default: Date.now }
 });
-
 const Course = mongoose.model('Course', CourseSchema);
 
-// --- DUAL-STAGE DATABASE HANDSHAKE WITH ATLAS & LOCAL FALLBACKS ---
-const CLOUD_MONGO_URI = "mongodb+srv://mindmasters5167_db_user:r02VzCsxlIcdrSBQ@cluster0.4vnuwks.mongodb.net/lumina_learn_db?retryWrites=true&w=majority";
-const LOCAL_MONGO_URI = "mongodb://127.0.0.1:27017/lumina_learn_db";
+const MaterialSchema = new mongoose.Schema({
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  moduleId: { type: Number, required: true },
+  topicName: { type: String, required: true },
+  htmlContent: { type: String, required: true }, 
+  videoLink: { type: String, default: "[https://www.youtube.com](https://www.youtube.com)" },
+  createdAt: { type: Date, default: Date.now }
+});
+const Material = mongoose.model('Material', MaterialSchema);
 
-const connectDatabase = async () => {
-  mongoose.set('bufferCommands', false);
-  
-  try {
-    console.log('📡 [DB_CONNECT]: Attempting Cloud MongoDB Atlas Cluster link...');
-    await mongoose.connect(CLOUD_MONGO_URI, { serverSelectionTimeoutMS: 5000 });
-    console.log('📡 [DATABASE_CONNECTED]: Successfully connected to MongoDB Cloud Atlas (lumina_learn_db)!');
-  } catch (cloudErr) {
-    console.warn('⚠️ [CLOUD_FAILED]: Cloud MongoDB Atlas failed. Switching to Local MongoDB...');
-    try {
-      await mongoose.connect(LOCAL_MONGO_URI, { serverSelectionTimeoutMS: 4000 });
-      console.log('📡 [DATABASE_CONNECTED]: Connected to Local MongoDB successfully!');
-    } catch (localErr) {
-      console.error('❌ [DATABASE_OFFLINE]: Both Cloud and Local MongoDB are offline.');
-      console.log('💡 [MEMORY_MODE]: Running dynamically in-memory mode seamlessly.');
-    }
-  }
-};
+const QuizDataSchema = new mongoose.Schema({
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  moduleId: { type: Number, required: true },
+  topicName: { type: String, required: true },
+  quizName: { type: String, required: true },
+  questions: [{
+    id: { type: Number, required: true },
+    questionText: { type: String, required: true },
+    options: [{ type: String, required: true }],
+    correctOptionIndex: { type: Number, required: true }
+  }],
+  createdAt: { type: Date, default: Date.now }
+});
+const QuizData = mongoose.model('QuizData', QuizDataSchema);
 
-connectDatabase();
+const QuizResultsSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  quizDataId: { type: mongoose.Schema.Types.ObjectId, ref: 'QuizData', required: true },
+  totalQuestions: { type: Number, required: true },
+  correctAnswers: { type: Number, required: true },
+  scorePercentage: { type: Number, required: true },
+  userSelections: { type: Map, of: Number }, 
+  evaluatedAt: { type: Date, default: Date.now }
+});
+const QuizResults = mongoose.model('QuizResults', QuizResultsSchema);
 
-// --- GOOGLE GEMINI Rest API CONNECTOR ---
-const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const NoteSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  moduleId: { type: Number, required: true }, 
+  moduleName: { type: String, required: true },
+  title: { type: String, required: true, default: "Untitled Note" },
+  contentHtml: { type: String, required: true }, 
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+const Note = mongoose.model('Note', NoteSchema);
+
+// --- 🚀 SCHEMAS FOR ASSIGNMENTS SYSTEM CONFIGURATION ---
+const AssignmentSubmissionSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  moduleId: { type: Number, required: true },
+  topicName: { type: String, required: true },
+  assignmentType: { type: String, enum: ['CODING', 'CONCEPTUAL'], required: true },
+  selectedLanguage: { type: String, default: "Plain Text" }, 
+  submittedCodeOrText: { type: String, required: true }, 
+  submissionUrl: { type: String, default: "" }, // ✨ Added fallback support here to match routes
+  aiEvaluationLog: {
+    approachScore: { type: Number, default: 0 },
+    complexityAnalysis: { type: String, default: "" },
+    architecturalCritique: { type: String, default: "" },
+    betterAlternativeTemplate: { type: String, default: "" }
+  },
+  status: { type: String, enum: ['Submitted', 'Evaluated'], default: "Submitted" },
+  submittedAt: { type: Date, default: Date.now }
+});
+const AssignmentSubmission = mongoose.model('AssignmentSubmission', AssignmentSubmissionSchema);
+
+
+// --- CLOUD ATLAS STORAGE LINK HANDSHAKE ---
+const CLOUD_MONGO_URI = process.env.MONGO_URI;
+
+mongoose.connect(CLOUD_MONGO_URI)
+  .then(() => console.log('📡 [DATABASE_CONNECTED]: Successfully mapped to MongoDB Cloud Atlas!'))
+  .catch(err => console.error('❌ [DATABASE_OFFLINE]: Cloud handshake pipeline crashed:', err));
+
+
+// --- UNIVERSAL GEMINI REST API COUPLER ---
+const callGeminiAPI = async (apiKey, userQuery, systemPrompt, customSchema) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
   
   const requestPayload = {
     contents: [{ parts: [{ text: userQuery }] }],
@@ -101,12 +165,13 @@ const callGeminiAPI = async (userQuery, systemPrompt, customSchema) => {
   
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Gemini status code error: ${response.status} - ${errText}`);
+    throw new Error(`Gemini gateway failed code: ${response.status} - ${errText}`);
   }
   
   const responseData = await response.json();
   return responseData.candidates?.[0]?.content?.parts?.[0]?.text;
 };
+
 
 // --- SESSION SECURITY LAYER MIDDLEWARE ---
 const authorizeSessionToken = (req, res, next) => {
@@ -121,57 +186,105 @@ const authorizeSessionToken = (req, res, next) => {
   });
 };
 
-// --- DUMMY DIAGNOSTIC ENDPOINT FOR NETWORK VERIFICATION ---
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    success: true, 
-    message: "LuminaLearn backend is alive and accessible!",
-    dbStatus: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected"
-  });
+
+// --- NOTE WORKSPACE ROUTERS ---
+app.post('/api/notes/save', authorizeSessionToken, async (req, res) => {
+  const { noteId, courseId, moduleId, moduleName, title, contentHtml } = req.body;
+  if (!courseId || moduleId === undefined || !contentHtml) {
+    return res.status(400).json({ success: false, message: "Missing required note metadata or content." });
+  }
+
+  try {
+    let note;
+    if (noteId) {
+      note = await Note.findOneAndUpdate(
+        { _id: noteId, userId: req.user.userId },
+        { title, contentHtml, moduleName, updatedAt: Date.now() },
+        { new: true }
+      );
+    } else {
+      note = new Note({
+        userId: req.user.userId,
+        courseId,
+        moduleId,
+        moduleName,
+        title: title || "Untitled Note",
+        contentHtml
+      });
+      await note.save();
+    }
+    res.status(200).json({ success: true, data: note });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error conserving the workspace note node." });
+  }
 });
 
-// --- REGISTER USER ---
+app.get('/api/notes/course/:courseId', authorizeSessionToken, async (req, res) => {
+  try {
+    const notes = await Note.find({ 
+      userId: req.user.userId, 
+      courseId: req.params.courseId 
+    }).sort({ updatedAt: -1 });
+    res.status(200).json({ success: true, data: notes });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed fetching cloud note matrices." });
+  }
+});
+
+
+// --- SECURITY ACCOUNT MANAGER ROUTERS ---
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { fullName, email } = req.body;
-    res.status(201).json({ 
-      success: true, 
-      message: 'Workspace credentials node compiled successfully (Dry-Run Mode).',
-      user: { fullName, email }
-    });
+    const { fullName, email, password } = req.body;
+    if (!fullName || !email || !password) return res.status(400).json({ success: false, message: 'All inputs required.' });
+
+    const userExists = await User.findOne({ email });
+    if (userExists) return res.status(400).json({ success: false, message: 'User profile already registered.' });
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = new User({ fullName, email, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ success: true, message: 'Account node deployed successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Internal signup validator crash.' });
   }
 });
 
-// --- LOGIN GATEWAY ---
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email } = req.body;
-    const mockUserId = new mongoose.Types.ObjectId();
-    const token = jwt.sign({ userId: mockUserId, email }, JWT_SECRET, { expiresIn: '24h' });
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ success: false, message: 'Invalid credentials.' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ success: false, message: 'Invalid credentials.' });
+
+    const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
 
     res.status(200).json({
       success: true,
       token,
-      user: { id: mockUserId, fullName: "Manish Maurya", email, role: "Student", domain: "Programming" }
+      user: { id: user._id, fullName: user.fullName, email: user.email }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Authentication error.' });
+    res.status(500).json({ success: false, message: 'Authentication error gateway fault.' });
   }
 });
 
-// --- AI COURSE GENERATOR (AUTO SAVE TO DB IF ONLINE) ---
+
+// --- AUTOMATED PEDAGOGY CORE ROUTERS ---
+
+// METHOD 1: GENERATE COURSE ROADMAP
 app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
   const { prompt, level } = req.body;
   const activeUserId = req.user.userId;
 
   if (!prompt) return res.status(400).json({ success: false, error: 'Prompt is required.' });
 
-  const systemInstructions = `You are LuminaLearn smart pedagogical system engine. Evaluate the subject matter query. 
-  If it is technical (coding/engineering), generate modular tracks accordingly. 
-  If it is non-technical (e.g., sports, dance, cooking, fitness), remove code tasks and focus completely on visual guidelines, physical postures, training frameworks, or real-life demonstration mapping.
-  You must capture this mapping strategy inside the fields 'contentType' ("Technical" or "Non-Technical") and 'visualGuidelines' (detailing what charts, images, actions or postures to verify). Every single module block must scale dynamically and must contain an exclusive quiz element data bundle and an assignment track.`;
+  const systemInstructions = `You are LuminaLearn smart pedagogical system engine. Evaluate the subject matter query. Return a structured layout containing plain string array of topics, an exclusive quiz element metadata, and assignment tracks bounds rules.`;
   
   const structuredResponseSchema = {
     type: "object",
@@ -188,103 +301,317 @@ app.post('/api/courses/generate', authorizeSessionToken, async (req, res) => {
             moduleId: { type: "integer" },
             moduleName: { type: "string" },
             objective: { type: "string" },
-            topics: { type: "array", items: { type: "string" } },
-            youtubeSearchQuery: { type: "string" },
             shortSummary: { type: "string" },
+            youtubeSearchQuery: { type: "string" },
             visualGuidelines: { type: "string" },
-            quiz: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                quizTopic: { type: "string" },
-                duration: { type: "string" }
-              },
-              required: ["name", "quizTopic", "duration"]
-            },
-            assignment: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                assignmentObjective: { type: "string" },
-                complexity: { type: "string" }
-              },
-              required: ["name", "assignmentObjective", "complexity"]
-            }
+            topics: { type: "array", items: { type: "string" } },
+            quiz: { type: "object", properties: { name: { type: "string" }, quizTopic: { type: "string" }, duration: { type: "string" } }, required: ["name", "quizTopic", "duration"] },
+            assignment: { type: "object", properties: { name: { type: "string" }, assignmentObjective: { type: "string" }, complexity: { type: "string" } }, required: ["name", "assignmentObjective", "complexity"] }
           },
-          required: ["moduleId", "moduleName", "objective", "topics", "youtubeSearchQuery", "shortSummary", "visualGuidelines", "quiz", "assignment"]
+          required: ["moduleId", "moduleName", "objective", "shortSummary", "youtubeSearchQuery", "visualGuidelines", "topics", "quiz", "assignment"]
         }
       }
     },
     required: ["title", "level", "estimatedTime", "contentType", "modules"]
   };
 
-  const userQueryPrompt = `Construct a complete course matrix roadmap on the topic: "${prompt}" suited for depth layer: "${level || 'Beginner'}". Output stringified JSON format structure directly without markdown backticks wrapper strings.`;
+  const userQueryPrompt = `Construct a complete course matrix roadmap on the topic: "${prompt}" suited for depth layer: "${level || 'Beginner'}".`;
 
   try {
-    console.log(`🤖 [AI_ENGINE]: Parsing course data stream elements structure for user: ${activeUserId}`);
-    const rawAiText = await callGeminiAPI(userQueryPrompt, systemInstructions, structuredResponseSchema);
-    
-    let jsonFormattedStr = rawAiText.trim();
-    if (jsonFormattedStr.startsWith('```')) {
-      jsonFormattedStr = jsonFormattedStr.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-    }
+    const rawAiText = await callGeminiAPI(GEMINI_PRIMARY_KEY, userQueryPrompt, systemInstructions, structuredResponseSchema);
+    const compiledCoursePayload = JSON.parse(rawAiText.trim());
 
-    const compiledCoursePayload = JSON.parse(jsonFormattedStr);
-
-    const persistentCourseNode = new Course({
-      userId: activeUserId,
-      title: compiledCoursePayload.title,
-      level: compiledCoursePayload.level,
-      estimatedTime: compiledCoursePayload.estimatedTime,
-      contentType: compiledCoursePayload.contentType,
-      modules: compiledCoursePayload.modules
-    });
-
-    if (mongoose.connection.readyState === 1) {
-      await persistentCourseNode.save();
-      console.log(`💾 [DB_SUCCESS]: Course successfully saved inside active MongoDB collection.`);
-    } else {
-      console.log(`💡 [MEMORY_MODE]: Database is offline. Outputting generated roadmap directly without save.`);
-    }
-
+    const persistentCourseNode = new Course({ userId: activeUserId, ...compiledCoursePayload });
+    await persistentCourseNode.save();
     return res.status(201).json({ success: true, data: persistentCourseNode });
-
   } catch (error) {
-    console.error('❌ [GENERATION_FAULT]:', error);
-    res.status(500).json({ success: false, error: 'AI model pipeline crashed.', details: error.message });
+    console.error("Course Generation Error:", error);
+    res.status(500).json({ success: false, error: 'AI model pipeline crashed.' });
   }
 });
 
-// --- GET ALL SAVED COURSES ---
+// METHOD 2: FETCH OR GENERATE MATERIAL LECTURES
+app.post('/api/courses/fetch-material', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName } = req.body;
+  if (!courseId || !moduleId || !topicName) return res.status(400).json({ success: false, message: "Missing required identification metadata strings." });
+
+  try {
+    const targetCourse = await Course.findById(courseId);
+    const currentLevel = targetCourse ? targetCourse.level : "Beginner"; 
+
+    let existingMaterial = await Material.findOne({ courseId, moduleId, topicName });
+    if (existingMaterial) return res.status(200).json({ success: true, data: existingMaterial });
+
+    const materialSchema = {
+      type: "object",
+      properties: { htmlContent: { type: "string" }, videoLink: { type: "string" } },
+      required: ["htmlContent", "videoLink"]
+    };
+
+    const systemPrompt = `You are LuminaLearn's elite senior software architect and master technical educator. Explain the given topic deeply, extensively, and completely without any rigid parameter or section boundaries. 
+    Write exactly like standard unconstrained responses, using beautiful custom inline-styled HTML wrappers. Adopt perfectly to the skill level: [${currentLevel}].
+    Use clean design block palettes: terminal panels with color rules #e6edf3 for codes, dark slate alerts, and sharp accent neon cards for analogies. Avoid markdown wraps.`;
+
+    const corePrompt = `Generate an unconstrained, deeply rich educational master lecture for the technical topic: "${topicName}". Student Target Experience Skillset: "${currentLevel}". Attach a high-relevance educational YouTube watch URL link for "videoLink".`;
+
+    const rawAiText = await callGeminiAPI(GEMINI_SECONDARY_KEY, corePrompt, systemPrompt, materialSchema);
+    const parsedData = JSON.parse(rawAiText.trim());
+
+    const newMaterialRecord = new Material({ courseId, moduleId, topicName, ...parsedData });
+    await newMaterialRecord.save();
+    res.status(200).json({ success: true, data: newMaterialRecord });
+  } catch (err) {
+    console.error("Fetch Material Error:", err);
+    res.status(500).json({ success: false, message: "Real-time content pipeline fault." });
+  }
+});
+
+
+// --- 🚀 ASSIGNMENTS HANDLERS (PATCHED & SECURED) ---
+
+// CHECK LOCK STATE
+app.post('/api/assignment/check-lock', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName } = req.body;
+  try {
+    const submission = await AssignmentSubmission.findOne({
+      userId: req.user.userId,
+      courseId,
+      moduleId,
+      topicName
+    });
+    if (submission) {
+      return res.status(200).json({ success: true, isLocked: true, data: submission });
+    }
+    res.status(200).json({ success: true, isLocked: false, data: null });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Database failure." });
+  }
+});
+
+// REGISTER MANUAL ASSIGNMENT SUBMISSION (FIXED STRUCTURAL PARAMS)
+app.post('/api/assignment/submit', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName, assignmentType, submittedCodeOrText, submissionUrl } = req.body;
+  if (!submittedCodeOrText) return res.status(400).json({ success: false, message: "Submission source content payload is empty." });
+
+  try {
+    const newSubmission = new AssignmentSubmission({
+      userId: req.user.userId,
+      courseId,
+      moduleId,
+      topicName,
+      assignmentType: assignmentType || 'CONCEPTUAL',
+      submittedCodeOrText,
+      submissionUrl: submissionUrl || "",
+      status: "Submitted"
+    });
+    await newSubmission.save();
+    res.status(201).json({ success: true, message: "Assignment committed successfully under cloud nodes repository." });
+  } catch (err) {
+    console.error("Manual Submission Save Error:", err);
+    res.status(500).json({ success: false, message: "Failed writing assignment record due to internal schema constraints." });
+  }
+});
+
+// AI CRITIC CRITIQUE PARSER
+app.post('/api/assignment/evaluate-via-ai', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName, assignmentType, selectedLanguage, codeOrText } = req.body;
+  if (!codeOrText) return res.status(400).json({ success: false, message: "No text or source payload provided for evaluation." });
+
+  try {
+    const aiResponseSchema = {
+      type: "object",
+      properties: {
+        approachScore: { type: "integer" },
+        complexityAnalysis: { type: "string" },
+        architecturalCritique: { type: "string" },
+        betterAlternativeTemplate: { type: "string" }
+      },
+      required: ["approachScore", "complexityAnalysis", "architecturalCritique", "betterAlternativeTemplate"]
+    };
+
+    let systemicSystemPrompt = `You are LuminaLearn's core AI compiler critic and code reviewer. Analyze the code logic or concept writeup comprehensively. 
+    Calculate optimization parameters, check design flaws, offer cleaner runtime paradigms, and give an approachScore from 1 to 100.`;
+
+    let specificUserPrompt = `
+      Topic Context: "${topicName}"
+      Assignment Type Mode: "${assignmentType || 'CODING'}"
+      Target Enforced Language: "${selectedLanguage || 'Plain Text'}"
+      User Submitted Source Payload:
+      --------------------------------------------------
+      ${codeOrText}
+      --------------------------------------------------
+      Evaluate structure strictly according to response formats.
+    `;
+
+    console.log(`🤖 [AI_CRITIC]: Running runtime static evaluation graph for topic: ${topicName}`);
+    const rawAiFeedback = await callGeminiAPI(GEMINI_SECONDARY_KEY, specificUserPrompt, systemicSystemPrompt, aiResponseSchema);
+    const parsedFeedback = JSON.parse(rawAiFeedback.trim());
+
+    const fullSubmissionRecord = new AssignmentSubmission({
+      userId: req.user.userId,
+      courseId,
+      moduleId,
+      topicName,
+      assignmentType: assignmentType || 'CODING',
+      selectedLanguage: selectedLanguage || 'Plain Text',
+      submittedCodeOrText: codeOrText,
+      aiEvaluationLog: parsedFeedback,
+      status: "Evaluated"
+    });
+
+    await fullSubmissionRecord.save();
+    res.status(200).json({ success: true, submissionData: fullSubmissionRecord });
+  } catch (error) {
+    console.error("❌ AI Critic evaluation pipeline broken:", error);
+    res.status(500).json({ success: false, message: "System evaluation engine tracking fault." });
+  }
+});
+
+
+// --- QUIZ DATA & LIVE PERFORMANCE LAYERS ---
+
+app.post('/api/quiz/check-lock-state', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName } = req.body;
+  if (!courseId || !moduleId) return res.status(400).json({ success: false, message: "Missing metadata." });
+
+  try {
+    const targetQuiz = await QuizData.findOne({ courseId, moduleId, topicName });
+    if (!targetQuiz) {
+      return res.status(200).json({ success: true, isLocked: false, resultData: null });
+    }
+
+    const activeResult = await QuizResults.findOne({ 
+      userId: req.user.userId, 
+      quizDataId: targetQuiz._id 
+    }).sort({ evaluatedAt: -1 });
+
+    if (activeResult) {
+      return res.status(200).json({
+        success: true,
+        isLocked: true,
+        resultData: {
+          total: activeResult.totalQuestions,
+          correct: activeResult.correctAnswers,
+          percentage: activeResult.scorePercentage
+        }
+      });
+    }
+
+    res.status(200).json({ success: true, isLocked: false, resultData: null });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Database handshake fault." });
+  }
+});
+
+app.post('/api/quiz/generate-and-save', authorizeSessionToken, async (req, res) => {
+  const { courseId, moduleId, topicName, quizName } = req.body;
+  if(!courseId || !moduleId || !topicName) return res.status(400).json({ success: false, message: "Missing metadata tags." });
+
+  try {
+    let existingQuiz = await QuizData.findOne({ courseId, moduleId, topicName });
+    
+    if (existingQuiz) {
+      console.log(`💡 [QUIZ_CACHE_HIT]: Restoring persistent telemetry map array nodes from database.`);
+      let existingResults = await QuizResults.findOne({ userId: req.user.userId, quizDataId: existingQuiz._id }).sort({ evaluatedAt: -1 });
+      
+      return res.status(200).json({ 
+        success: true, 
+        quizData: existingQuiz,
+        existingResults: existingResults || null
+      });
+    }
+
+    const customSchema = {
+      type: "object",
+      properties: {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              questionText: { type: "string" },
+              options: { type: "array", items: { type: "string" } },
+              correctOptionIndex: { type: "integer" }
+            },
+            required: ["id", "questionText", "options", "correctOptionIndex"]
+          }
+        }
+      },
+      required: ["questions"]
+    };
+
+    const prompt = `Generate exactly 10 comprehensive, rigorous technical multiple-choice questions for the advanced software engineering concept: "${topicName}". Each item must have id (1-10), questionText, 4 direct options, and correctOptionIndex (0-3).`;
+
+    const rawText = await callGeminiAPI(GEMINI_SECONDARY_KEY, prompt, "You are LuminaLearn's automated test writer module.", customSchema);
+    let parsedQuestions = JSON.parse(rawText.trim());
+
+    const newQuizRecord = new QuizData({
+      courseId,
+      moduleId,
+      topicName,
+      quizName: quizName || "Sprint Evaluation Track",
+      questions: parsedQuestions.questions
+    });
+
+    await newQuizRecord.save();
+    res.status(200).json({ success: true, quizData: newQuizRecord, existingResults: null });
+  } catch (error) {
+    console.error("❌ Quiz generation pipeline crashed:", error);
+    res.status(500).json({ success: false, message: "Internal token compilation fault." });
+  }
+});
+
+app.post('/api/quiz/record-results', authorizeSessionToken, async (req, res) => {
+  const { quizDataId, totalQuestions, correctAnswers, scorePercentage, userSelections } = req.body;
+  
+  if(!quizDataId || totalQuestions === undefined || correctAnswers === undefined) {
+    return res.status(400).json({ success: false, message: "Missing evaluation execution metrics parameters." });
+  }
+
+  try {
+    const finalResultNode = new QuizResults({
+      userId: req.user.userId,
+      quizDataId,
+      totalQuestions,
+      correctAnswers,
+      scorePercentage,
+      userSelections
+    });
+
+    await finalResultNode.save();
+    console.log(`💾 [DB_QUIZ_RESULTS_SUCCESS]: Analytics logs securely committed under quizresults warehouse node.`);
+    res.status(201).json({ success: true, message: "Performance metrics telemetry locked down successfully." });
+  } catch (error) {
+    console.error("❌ Results database tracking failure:", error);
+    res.status(500).json({ success: false, message: "Database transaction telemetry recording fault." });
+  }
+});
+
+
+// --- MISCELLANEOUS DATA UTILITIES ---
+
 app.get('/api/courses', authorizeSessionToken, async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(200).json({ success: true, data: [] });
-    }
     const courses = await Course.find({ userId: req.user.userId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: courses });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to retrieve cloud stored registries.' });
+    res.status(500).json({ success: false, message: 'Failed to retrieve cloud registries.' });
   }
 });
 
-// --- DELETE/MANAGE COURSE OPERATION ROUTE ---
 app.delete('/api/courses/:id', authorizeSessionToken, async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(400).json({ success: false, message: 'Database layer is offline.' });
-    }
-    const result = await Course.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
-    if (!result) return res.status(404).json({ success: false, message: 'Document not found.' });
+    await Course.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
     res.status(200).json({ success: true, message: 'Roadmap node cleared successfully.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Database deletion query crashed.' });
   }
 });
 
-// Strictly binding on '0.0.0.0' interface so other computers on local network can connect easily
+// Start Serving Pipeline Engine
 app.listen(PORT, '0.0.0.0', () => {
   console.log("-----------------------------------------------------------------");
-  console.log(`🚀 [SERVER ONLINE]: LuminaLearn Backend is fully serving on port: ${PORT}`);
+  console.log(`🚀 [SERVER ONLINE]: Serving Open Content & Quiz Matrix on Port: ${PORT}`);
   console.log("-----------------------------------------------------------------");
 });
