@@ -330,3 +330,300 @@
 /* Animations Core Matrix */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+
+
+
+
+/* ==========================================================================
+   Lumina Studio Notes System Architecture Core Stylesheet
+   ========================================================================== */
+
+.notes-system-wrapper {
+  font-family: 'Inter', sans-serif;
+  color: #f1f5f9;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  position: relative;
+}
+
+/* Modal Specific Layout Controls Override Matrix */
+.notes-system-wrapper.modal-view {
+  align-items: center;
+  justify-content: center;
+}
+
+.notes-system-wrapper.modal-view .notes-blur-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 4, 10, 0.4);
+  z-index: 1;
+}
+
+.notes-system-wrapper.modal-view .notes-panel-container {
+  position: relative;
+  width: 92vw;
+  max-width: 1360px;
+  height: 88vh;
+  background: #070a13;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideUpScale 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Fullscreen Specific Rule Controls */
+.notes-system-wrapper.fullscreen-view .notes-blur-overlay {
+  display: none;
+}
+.notes-system-wrapper.fullscreen-view .notes-panel-container {
+  width: 100%;
+  height: 100vh;
+  background: #02040a;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Node Controls */
+.notes-workspace-header {
+  padding: 1.25rem 2rem;
+  background: #090d16;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notes-workspace-header h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notes-workspace-header .badge {
+  font-size: 0.7rem;
+  font-family: monospace;
+  background: rgba(6, 182, 212, 0.1);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.header-actions button {
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  transition: all 150ms ease;
+}
+
+.btn-primary { background: #06b6d4; color: #000; }
+.btn-primary:hover { background: #22d3ee; }
+.btn-secondary { background: #1e293b; color: #cbd5e1; border: 1px solid rgba(255,255,255,0.02) !important; }
+.btn-secondary:hover { background: #334155; color: #fff; }
+.btn-close { background: #ef4444; color: #fff; }
+.btn-close:hover { background: #f87171; }
+
+/* Workspace Structural Body Grid */
+.notes-workspace-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Sidebar Component Navigation Node Mapping Columns */
+.notes-sidebar-controls {
+  width: 320px;
+  background: #05080f;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.notes-sidebar-controls label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.notes-sidebar-controls select {
+  width: 100%;
+  background: #0d131f;
+  border: 1px solid #1e293b;
+  color: #fff;
+  padding: 0.6rem;
+  border-radius: 6px;
+  outline: none;
+  font-size: 0.88rem;
+}
+
+.notes-sidebar-controls select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Vault History List Repositories */
+.history-vault-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.history-vault-section h4 {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-right: 4px;
+}
+
+.note-history-card {
+  background: #090d16;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  padding: 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.note-history-card:hover {
+  background: #0d1527;
+  border-color: rgba(255,255,255,0.08);
+}
+
+.note-history-card.active-track {
+  background: rgba(6, 182, 212, 0.04);
+  border-color: #06b6d4;
+}
+
+.note-history-card h5 { margin: 0 0 0.35rem 0; font-size: 0.9rem; color: #fff; font-weight: 600; }
+.note-history-card span { font-size: 0.72rem; color: #475569; display: block; font-weight: 500; }
+.empty-alert { font-size: 0.8rem; color: #334155; text-align: center; margin-top: 2rem; font-style: italic; }
+
+/* Right Text Processing Engine Workspace */
+.notes-word-editor-arena {
+  flex: 1;
+  background: #02040a;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.note-title-field {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  outline: none;
+  width: 100%;
+}
+
+/* Text Processing Toolbar System */
+.word-processor-toolbar {
+  background: #090d16;
+  border: 1px solid #1e293b;
+  padding: 0.5rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.word-processor-toolbar button {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.88rem;
+}
+
+.word-processor-toolbar button:hover {
+  background: #131b2e;
+  color: #fff;
+}
+
+.word-processor-toolbar .separator {
+  color: #1e293b;
+  margin: 0 0.4rem;
+  font-size: 0.9rem;
+}
+
+/* Rich Live Sandbox Canvas Core */
+.word-editable-canvas {
+  flex: 1;
+  background: #04060a;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  padding: 1.5rem;
+  outline: none;
+  overflow-y: auto;
+  color: #cbd5e1;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.word-editable-canvas pre {
+  background: #090d16;
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.85rem;
+  color: #a7f3d0;
+  overflow-x: auto;
+  border: 1px solid rgba(255,255,255,0.02);
+}
+
+/* Keyframe Core Animations Systems */
+@keyframes modalSlideUpScale {
+  from { opacity: 0; transform: scale(0.96) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fadeInAlpha {
+  from { background: rgba(2, 4, 10, 0); }
+  to { background: rgba(2, 4, 10, 0.75); }
+}
