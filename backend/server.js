@@ -121,7 +121,7 @@ const Note = mongoose.model('Note', NoteSchema);
 
 
 // --- CLOUD ATLAS STORAGE LINK HANDSHAKE ---
-const CLOUD_MONGO_URI = "mongodb+srv://mindmasters5167_db_user:r02VzCsxlIcdrSBQ@cluster0.4vnuwks.mongodb.net/lumina_learn_db?retryWrites=true&w=majority";
+const CLOUD_MONGO_URI = process.env.MONGO_URI;
 
 mongoose.connect(CLOUD_MONGO_URI)
   .then(() => console.log('📡 [DATABASE_CONNECTED]: Successfully mapped to MongoDB Cloud Atlas (lumina_learn_db)!'))
