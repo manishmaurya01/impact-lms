@@ -8,6 +8,7 @@ import Dashboard from './components/Dashboard/Dashboard.jsx';
 import AIAssignmentEngine from './components/Asignment/AIAssignmentEngine.jsx';
 import NotesPage from './components/Notes/NotesPage.jsx';
 import AICourseIntake from './components/AICourseIntake/AICourseIntake.jsx';
+import InterviewPage from './components/Interview/InterviewPage.jsx';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Route path="/assignments" element={<AICourseIntake />} />
         <Route path="/courses" element={<AICourseIntake />} />
         <Route path="/notes" element={<NotesPage />} />
+        <Route path="/interview" element={<InterviewPage />} />
       </Routes>
     </Router>
   );
