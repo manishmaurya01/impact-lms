@@ -91,7 +91,17 @@ export default function DashboardSidebar({ onLogout }) {
           {isExpanded && <span>Dashboard Hub</span>}
         </button>
 
-        {/* 2. AI Interviewer (नया जोड़ा गया) */}
+        {/* 2. Generate Course / Path (वापस डाल दिया है) */}
+        <button 
+          onClick={() => navigate('/assignments')} 
+          className={`nav-link-item ${isActive('/assignments')}`}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: isExpanded ? 'flex-start' : 'center', gap: isExpanded ? '0.85rem' : '0', width: '100%', padding: '0.85rem', whiteSpace: 'nowrap', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <Sparkles size={18} style={{ color: pathname === '/assignments' ? '#06B6D4' : 'inherit', flexShrink: 0 }} />
+          {isExpanded && <span>Generate Course</span>}
+        </button>
+
+        {/* 3. AI Interviewer */}
         <button 
           onClick={() => navigate('/interview')} 
           className={`nav-link-item ${isActive('/interview')}`}
@@ -101,7 +111,7 @@ export default function DashboardSidebar({ onLogout }) {
           {isExpanded && <span>AI Interviewer</span>}
         </button>
 
-        {/* 3. Manage Courses & History */}
+        {/* 4. Manage Courses & History */}
         <button 
           onClick={() => navigate('/courses')} 
           className={`nav-link-item ${isActive('/courses')}`}
@@ -111,7 +121,7 @@ export default function DashboardSidebar({ onLogout }) {
           {isExpanded && <span>Courses & History</span>}
         </button>
 
-        {/* 4. Cloud Notes Repository */}
+        {/* 5. Cloud Notes Repository */}
         <button 
           onClick={() => navigate('/notes')} 
           className={`nav-link-item ${isActive('/notes')}`}
