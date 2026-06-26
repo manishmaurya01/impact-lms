@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom"; // 👈 Router navigation link track karne ke liye
+import { useNavigate } from "react-router-dom";
 import "./NotesPage.css";
 
 function NotesPage({ isModal = false, activeCourseContext = null, onClose = null }) {
-  const navigate = useNavigate(); // 👈 Hook initialize kiya
+  const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedModule, setSelectedModule] = useState(null);
@@ -40,7 +40,7 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
     }
   }, [selectedCourse]);
 
-  // Context injection
+  // Context injection logic
   useEffect(() => {
     if (activeCourseContext && courses.length > 0) {
       const match = courses.find(c => c._id === activeCourseContext.courseId);
@@ -72,6 +72,7 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
     } catch (err) { console.error("Error loading notes:", err); }
   };
 
+  // Word-Style Commands Execution Engine
   const executeCommand = (command, value = null) => {
     document.execCommand(command, false, value);
     if (editorRef.current) editorRef.current.focus();
@@ -126,17 +127,48 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
     } catch (err) { alert("Workspace tracking sync pipeline faulted."); }
   };
 
+  // 🗑️ CLOUD LEDGER DELETE PIPELINE
+  const handleDeleteNote = async (e, noteId) => {
+    e.stopPropagation(); // Click bubble block sequence
+    
+    if (!window.confirm("Are you absolutely sure you want to purge this record node permanently from cloud networks?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/notes/${noteId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        alert("Note packet safely dropped from database cache records.");
+        if (activeNoteId === noteId) {
+          setActiveNoteId(null);
+          setNoteTitle("");
+          if (editorRef.current) editorRef.current.innerHTML = "<div>Start writing your rich structured notes...</div>";
+        }
+        fetchNotesForCourse(selectedCourse._id);
+      } else {
+        alert("Database system rejected dropping transaction branch packet.");
+      }
+    } catch (err) {
+      console.error("Purge lifecycle failed:", err);
+      alert("Critical workspace drop tracking engine error.");
+    }
+  };
+
   return (
     <div className={`notes-system-wrapper ${isModal ? "modal-view" : "fullscreen-view"}`}>
       <div className="notes-blur-overlay" onClick={onClose}></div>
 
       <div className="notes-panel-container">
         
-        {/* 💻 HIGH-FIDELITY ARCHITECTURAL HEADER ELEMENT */}
+        {/* 💻 HIGH-FIDELITY ARCHITECTURAL SYSTEM HEADER */}
         <div className="notes-workspace-header">
           <div className="header-left-cluster">
-            
-            {/* ⬅️ DYNAMIC ROUTER BACK BUTTON: Modal nahi hone par display hoga */}
             {!isModal && (
               <button className="btn-header-back" onClick={() => navigate(-1)} title="Return to Dashboard">
                 <span className="arrow-glyph">⟵</span> Back
@@ -152,7 +184,6 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
             </div>
           </div>
 
-          {/* Center Action Nodes */}
           <div className="header-actions">
             <button className="btn-secondary" onClick={handleNewNote}>
               <span style={{ fontSize: "1.1rem", fontWeight: "400" }}>+</span> New Workspace
@@ -162,7 +193,6 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
             </button>
           </div>
 
-          {/* Right Section: Identity Core */}
           <div className="header-user-profile-zone">
             <div className="user-meta-details">
               <span className="user-status-dot"></span>
@@ -179,7 +209,7 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
         {/* 📐 3-COLUMN WORKSPACE MATRIX BODY */}
         <div className="notes-workspace-body">
           
-          {/* COLUMN 1: LEFT CONTROLLER PANEL */}
+          {/* COLUMN 1: LEFT TELEMETRY CONTROLLER PANEL */}
           <div className="notes-sidebar-controls">
             <label>🎯 Track Target Course</label>
             <select 
@@ -210,7 +240,7 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
             </select>
           </div>
 
-          {/* COLUMN 2: CENTER TEXT CANVAS */}
+          {/* COLUMN 2: CENTER TEXT CANVAS EDIT AREA */}
           <div className="notes-word-editor-arena">
             <input 
               type="text" 
@@ -247,7 +277,7 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
             </div>
           </div>
 
-          {/* COLUMN 3: RIGHT LEDGER NOTEBOOK VAULT */}
+          {/* COLUMN 3: RIGHT LEDGER NOTEBOOK VAULT (Inline Delete System Linked) */}
           <div className="history-vault-section">
             <h4>🗄️ Saved Notebook Vault</h4>
             <div className="history-list">
@@ -260,7 +290,17 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
                     className={`note-history-card ${activeNoteId === n._id ? "active-track" : ""}`}
                     onClick={() => handleLoadNote(n)}
                   >
-                    <h5>{n.title}</h5>
+                    {/* 🛠️ INLINE ALIGNED TITLE AND DELETE CONTAINER */}
+                    <div className="note-card-title-row">
+                      <h5>{n.title}</h5>
+                      <button 
+                        className="btn-note-inline-purge"
+                        onClick={(e) => handleDeleteNote(e, n._id)}
+                        title="Purge Record Node"
+                      >
+                        ✕
+                      </button>
+                    </div>
                     <span>Module {n.moduleId} • {new Date(n.updatedAt).toLocaleDateString()}</span>
                   </div>
                 ))

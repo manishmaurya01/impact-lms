@@ -232,6 +232,50 @@ app.get('/api/notes/course/:courseId', authorizeSessionToken, async (req, res) =
 });
 
 
+
+
+// --- DELETE NOTE ROUTER (FIXED: Changed router to app) ---
+app.delete('/api/notes/:noteId', authorizeSessionToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const authenticatedUserId = req.user.userId; // Fixed: Matches your JWT payload key
+
+    // 1. Database cache node lookup
+    const note = await Note.findById(noteId);
+
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        message: "Note packet record not found in database mesh."
+      });
+    }
+
+    // 2. Security Boundary: Owner verification
+    if (note.userId.toString() !== authenticatedUserId) {
+      return res.status(403).json({
+        success: false,
+        message: "Security violation. Unauthorized drop lifecycle access."
+      });
+    }
+
+    // 3. Permanent delete execution
+    await Note.findByIdAndDelete(noteId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Note packet safely dropped from database cache records."
+    });
+
+  } catch (err) {
+    console.error("Critical workspace drop tracking engine error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server tracking sync pipeline faulted."
+    });
+  }
+});
+
+
 // --- SECURITY ACCOUNT MANAGER ROUTERS ---
 app.post('/api/auth/register', async (req, res) => {
   try {
