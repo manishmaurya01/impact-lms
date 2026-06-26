@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import WorkspaceHeader from './modules/WorkspaceHeader';
 import ModuleSidebarTree from './modules/ModuleSidebarTree';
 import MainResourceCanvas from './modules/MainResourceCanvas';
-import TakeQuizView from '../../quiz/TakeQuizView'; // 🚀 IMPORT THE NEW SYSTEM COMPONENT
-import TakeAssignmentView from '../../Asignment/TakeAssignmentView'; // 🚀 INTERCEPTOR LAB VIEW IMPORT
+import TakeQuizView from '../../quiz/TakeQuizView'; 
+import TakeAssignmentView from '../../Asignment/TakeAssignmentView'; 
 
 export default function AICourseLearningWorkspace({ courseData, onBack }) {
   const [activeModuleId, setActiveModuleId] = useState(courseData?.modules[0]?.moduleId || 1);
@@ -21,7 +21,7 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
 
   // 🚀 ROUTING FLAGS FOR FULLSCREEN SECURITY TERMINALS
   const [quizModeActive, setQuizModeActive] = useState(false);
-  const [assignmentModeActive, setAssignmentModeActive] = useState(false); // 🚀 NEW LABORATORY CONTROLLER
+  const [assignmentModeActive, setAssignmentModeActive] = useState(false); 
 
   const modulesArray = courseData?.modules || [];
   const currentModuleIndex = modulesArray.findIndex(m => m.moduleId === activeModuleId);
@@ -96,13 +96,14 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
   const handleTopicSelection = (modId, topicIdx) => {
     setActiveTab('video');
     setQuizModeActive(false); 
-    setAssignmentModeActive(false); // Clean flag on swap
+    setAssignmentModeActive(false); 
     const targetModule = modulesArray.find(m => m.moduleId === modId);
     const targetTopicName = targetModule?.topics?.[topicIdx] || "";
     loadTopicMaterialOnDemand(modId, topicIdx, targetTopicName);
   };
 
   const markTopicAsCompleted = () => {
+    window.speechSynthesis.cancel(); 
     const currentKey = `mod-${activeModuleId}-topic-${activeTopicIndex}`;
     setCompletedTracks(prev => ({ ...prev, [currentKey]: true }));
 
@@ -116,29 +117,20 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
     }
   };
 
-  // 🚀 CALLBACK INTERCEPT: Quiz terminal submit finished data routing
   const handleQuizSubmissionSuccess = (scorePayload) => {
     const activeTrackKey = `mod-${activeModuleId}-topic-${activeTopicIndex}`;
-    setQuizResultsCache(prev => ({
-      ...prev,
-      [activeTrackKey]: scorePayload
-    }));
+    setQuizResultsCache(prev => ({ ...prev, [activeTrackKey]: scorePayload }));
     setActiveTab('quiz'); 
     setQuizModeActive(false); 
   };
 
-  // 🚀 CALLBACK INTERCEPT: Assignment laboratory terminal submit routing
   const handleAssignmentSubmissionSuccess = (evaluationPayload) => {
     const activeTrackKey = `mod-${activeModuleId}-topic-${activeTopicIndex}`;
-    setAssignmentLocksCache(prev => ({
-      ...prev,
-      [activeTrackKey]: evaluationPayload
-    }));
+    setAssignmentLocksCache(prev => ({ ...prev, [activeTrackKey]: evaluationPayload }));
     setActiveTab('assignment');
     setAssignmentModeActive(false);
   };
 
-  // 🛑 SAFETY RENDER INTERCEPTOR A: FULLSCREEN TERMINAL QUIZ ENGINE
   if (quizModeActive) {
     return (
       <TakeQuizView 
@@ -152,7 +144,6 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
     );
   }
 
-  // 🛑 SAFETY RENDER INTERCEPTOR B: FULLSCREEN INDUSTRIAL LAB ENGINE
   if (assignmentModeActive) {
     return (
       <TakeAssignmentView 
@@ -168,8 +159,6 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', background: '#02040a', overflow: 'hidden' }}>
-      
-      {/* 🚀 FIXED SECURE HEADER WITH ACCURATE VERIFICATION DATA BINDINGS */}
       <WorkspaceHeader 
         courseTitle={courseData?.title} 
         modules={modulesArray}
@@ -178,7 +167,6 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
       />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        
         <ModuleSidebarTree 
           modules={modulesArray} 
           activeModuleId={activeModuleId}
@@ -204,7 +192,6 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
           </div>
         )}
 
-        {/* 🚀 PACKING COMPREHENSIVE COMPLIANCE DATA DIRECTLY DOWN STREAM */}
         <MainResourceCanvas 
           topicName={currentTopicName}
           activeTab={activeTab}
@@ -214,13 +201,10 @@ export default function AICourseLearningWorkspace({ courseData, onBack }) {
           quiz={currentModule?.quiz} 
           assignment={currentModule?.assignment} 
           onComplete={markTopicAsCompleted} 
-          
           onLaunchQuiz={() => setQuizModeActive(true)}
-          onLaunchAssignment={() => setAssignmentModeActive(true)} // Connected Launch handler
-          
+          onLaunchAssignment={() => setAssignmentModeActive(true)} 
           courseId={courseData?._id}
           moduleId={activeModuleId}
-          
           activeQuizResult={quizResultsCache[`mod-${activeModuleId}-topic-${activeTopicIndex}`]} 
           activeAssignmentResult={assignmentLocksCache[`mod-${activeModuleId}-topic-${activeTopicIndex}`]}
         />

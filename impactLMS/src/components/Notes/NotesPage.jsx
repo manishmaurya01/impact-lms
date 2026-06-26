@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom"; // 👈 Router navigation link track karne ke liye
 import "./NotesPage.css";
 
 function NotesPage({ isModal = false, activeCourseContext = null, onClose = null }) {
+  const navigate = useNavigate(); // 👈 Hook initialize kiya
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedModule, setSelectedModule] = useState(null);
@@ -10,10 +12,24 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [noteTitle, setNoteTitle] = useState("");
   const editorRef = useRef(null);
+  const [userName, setUserName] = useState("Operator Node");
 
-  // Load user courses & notes logic
   useEffect(() => {
     fetchCourses();
+    try {
+      const storedUser = localStorage.getItem("userName") || localStorage.getItem("user");
+      if (storedUser) {
+        if (storedUser.startsWith("{")) {
+          const parsed = JSON.parse(storedUser);
+          setUserName(parsed.name || parsed.email?.split("@")[0] || "Operator Node");
+        } else {
+          let cleanStr = storedUser.replace(/"/g, '').trim();
+          setUserName(cleanStr.includes("@") ? cleanStr.split("@")[0] : cleanStr);
+        }
+      }
+    } catch (err) {
+      console.error("User context tracking faulted:", err);
+    }
   }, []);
 
   useEffect(() => {
@@ -24,7 +40,7 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
     }
   }, [selectedCourse]);
 
-  // Context injection agar kisi module ke andhar se popup khule
+  // Context injection
   useEffect(() => {
     if (activeCourseContext && courses.length > 0) {
       const match = courses.find(c => c._id === activeCourseContext.courseId);
@@ -41,30 +57,21 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
   const fetchCourses = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("/api/courses", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch("/api/courses", { headers: { Authorization: `Bearer ${token}` } });
       const result = await res.json();
       if (result.success) setCourses(result.data);
-    } catch (err) {
-      console.error("Error loading courses:", err);
-    }
+    } catch (err) { console.error("Error loading courses:", err); }
   };
 
   const fetchNotesForCourse = async (courseId) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`/api/notes/course/${courseId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(`/api/notes/course/${courseId}`, { headers: { Authorization: `Bearer ${token}` } });
       const result = await res.json();
       if (result.success) setNotes(result.data);
-    } catch (err) {
-      console.error("Error loading notes:", err);
-    }
+    } catch (err) { console.error("Error loading notes:", err); }
   };
 
-  // Word-Style Commands Execution Engine
   const executeCommand = (command, value = null) => {
     document.execCommand(command, false, value);
     if (editorRef.current) editorRef.current.focus();
@@ -100,10 +107,7 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
       const token = localStorage.getItem("token");
       const res = await fetch("/api/notes/save", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           noteId: activeNoteId,
           courseId: selectedCourse._id,
@@ -119,28 +123,63 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
         fetchNotesForCourse(selectedCourse._id);
         if(!activeNoteId) handleNewNote();
       }
-    } catch (err) {
-      alert("Workspace tracking sync pipeline faulted.");
-    }
+    } catch (err) { alert("Workspace tracking sync pipeline faulted."); }
   };
 
   return (
     <div className={`notes-system-wrapper ${isModal ? "modal-view" : "fullscreen-view"}`}>
       <div className="notes-blur-overlay" onClick={onClose}></div>
+
       <div className="notes-panel-container">
         
-        {/* Header Action Nodes */}
+        {/* 💻 HIGH-FIDELITY ARCHITECTURAL HEADER ELEMENT */}
         <div className="notes-workspace-header">
-          <h2>📚 Lumina Studio Notes {isModal && <span className="badge">Context Sync</span>}</h2>
+          <div className="header-left-cluster">
+            
+            {/* ⬅️ DYNAMIC ROUTER BACK BUTTON: Modal nahi hone par display hoga */}
+            {!isModal && (
+              <button className="btn-header-back" onClick={() => navigate(-1)} title="Return to Dashboard">
+                <span className="arrow-glyph">⟵</span> Back
+              </button>
+            )}
+
+            <div className="header-identity-block">
+              <h2>
+                <span className="icon-telemetry">✦</span> LuminaLearn Notes 
+                {isModal && <span className="badge">Sync Context</span>}
+              </h2>
+              <p className="sub-telemetry-text">Secure Document Ledger Workspace</p>
+            </div>
+          </div>
+
+          {/* Center Action Nodes */}
           <div className="header-actions">
-            <button className="btn-secondary" onClick={handleNewNote}>+ Clear/New Workspace</button>
-            <button className="btn-primary" onClick={handleSaveNote}>💾 Commit Sync to DB</button>
-            {isModal && <button className="btn-close" onClick={onClose}>✕ Close</button>}
+            <button className="btn-secondary" onClick={handleNewNote}>
+              <span style={{ fontSize: "1.1rem", fontWeight: "400" }}>+</span> New Workspace
+            </button>
+            <button className="btn-primary" onClick={handleSaveNote}>
+              <span style={{ fontSize: "0.95rem" }}>⛃</span> Commit Sync to DB
+            </button>
+          </div>
+
+          {/* Right Section: Identity Core */}
+          <div className="header-user-profile-zone">
+            <div className="user-meta-details">
+              <span className="user-status-dot"></span>
+              <span className="user-profile-name">{userName}</span>
+            </div>
+            {isModal && (
+              <button className="btn-close" onClick={onClose} title="Exit Workspace">
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
+        {/* 📐 3-COLUMN WORKSPACE MATRIX BODY */}
         <div className="notes-workspace-body">
-          {/* Left Navigation: Course & Architecture Trees */}
+          
+          {/* COLUMN 1: LEFT CONTROLLER PANEL */}
           <div className="notes-sidebar-controls">
             <label>🎯 Track Target Course</label>
             <select 
@@ -169,28 +208,9 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
                 <option key={m.moduleId} value={m.moduleId}>M{m.moduleId}: {m.moduleName}</option>
               ))}
             </select>
-
-            {/* Saved notes repository context map */}
-            <div className="history-vault-section">
-              <h4>🗄️ Saved Notebook Vault</h4>
-              <div className="history-list">
-                {notes.length === 0 ? <p className="empty-alert">No records under this course node.</p> : 
-                  notes.map(n => (
-                    <div 
-                      key={n._id} 
-                      className={`note-history-card ${activeNoteId === n._id ? "active-track" : ""}`}
-                      onClick={() => handleLoadNote(n)}
-                    >
-                      <h5>{n.title}</h5>
-                      <span>Module {n.moduleId} • {new Date(n.updatedAt).toLocaleDateString()}</span>
-                    </div>
-                  ))
-                }
-              </div>
-            </div>
           </div>
 
-          {/* Right Editor: Word Matrix Core */}
+          {/* COLUMN 2: CENTER TEXT CANVAS */}
           <div className="notes-word-editor-arena">
             <input 
               type="text" 
@@ -200,7 +220,6 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
               onChange={(e) => setNoteTitle(e.target.value)}
             />
 
-            {/* Word Processor Command Bar Toolbar */}
             <div className="word-processor-toolbar">
               <button title="Bold" onClick={() => executeCommand("bold")}><b>B</b></button>
               <button title="Italic" onClick={() => executeCommand("italic")}><i>I</i></button>
@@ -218,7 +237,6 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
               <button title="Align Right" onClick={() => executeCommand("justifyRight")}>⇒</button>
             </div>
 
-            {/* Realtime Content Editable Canvas Wrapper */}
             <div 
               className="word-editable-canvas"
               contentEditable
@@ -226,6 +244,27 @@ function NotesPage({ isModal = false, activeCourseContext = null, onClose = null
               ref={editorRef}
             >
               <div>Start writing your rich structured notes...</div>
+            </div>
+          </div>
+
+          {/* COLUMN 3: RIGHT LEDGER NOTEBOOK VAULT */}
+          <div className="history-vault-section">
+            <h4>🗄️ Saved Notebook Vault</h4>
+            <div className="history-list">
+              {notes.length === 0 ? (
+                <p className="empty-alert">No records under this course node.</p>
+              ) : (
+                notes.map(n => (
+                  <div 
+                    key={n._id} 
+                    className={`note-history-card ${activeNoteId === n._id ? "active-track" : ""}`}
+                    onClick={() => handleLoadNote(n)}
+                  >
+                    <h5>{n.title}</h5>
+                    <span>Module {n.moduleId} • {new Date(n.updatedAt).toLocaleDateString()}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
